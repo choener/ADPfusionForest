@@ -36,6 +36,7 @@ library
                , unordered-containers   >= 0.2      &&  < 0.3
                , vector                 >= 0.10     &&  < 0.12
                , vector-th-unbox        >= 0.2      &&  < 0.3
+               , PrimitiveArray         >= 0.7.0    &&  < 0.7.1
   exposed-modules:
     Data.Forest.Static.ADP
   default-language:
@@ -50,6 +51,9 @@ library
                     , RankNTypes
                     , StandaloneDeriving
                     , UndecidableInstances
+                    , TypeOperators
+                    , TypeFamilies
+                    , FlexibleInstances
   ghc-options:
     -O2
 
