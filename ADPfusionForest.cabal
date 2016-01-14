@@ -46,6 +46,7 @@ library
                , unordered-containers   >= 0.2      &&  < 0.3
                , vector                 >= 0.10     &&  < 0.12
                , vector-th-unbox        >= 0.2      &&  < 0.3
+               , strict                 >= 0.3      &&  < 0.4
   exposed-modules:
     Data.Forest.Static.ADP
   default-language:
@@ -63,6 +64,9 @@ library
                     , TypeFamilies
                     , TypeOperators
                     , UndecidableInstances
+                    , GADTs
+                    , MultiParamTypeClasses
+                    , ScopedTypeVariables
   ghc-options:
     -O2
     -funbox-strict-fields
