@@ -20,11 +20,11 @@ import           Data.PrimitiveArray
 
 
 
-data TreeIxR p a t = TreeIxR !(Forest p a) !Int !Int
+data TreeIxR p v a t = TreeIxR !(Forest p v a) !Int !Int
 
-data instance RunningIndex (TreeIxR p a I) = RiTirI !Int
+data instance RunningIndex (TreeIxR p v a I) = RiTirI !Int
 
-instance Index (TreeIxR p a t) where
+instance Index (TreeIxR p v a t) where
   linearIndex _ _ (TreeIxR _ l _) = l
   {-# Inline linearIndex #-}
   smallestLinearIndex _ = error "still needed?"
@@ -37,7 +37,7 @@ instance Index (TreeIxR p a t) where
   {-# Inline inBounds #-}
 
 
-instance IndexStream z => IndexStream (z:.TreeIxR p a I) where
+instance IndexStream z => IndexStream (z:.TreeIxR p v a I) where
   streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ _ ht) = flatten (streamUpMk   ht) (streamUpStep   p lf ht) $ streamUp ls hs
   streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ _ ht) = flatten (streamDownMk lf) (streamDownStep p lf ht) $ streamDown ls hs
   {-# Inline streamUp #-}
@@ -60,5 +60,5 @@ streamDownStep p lf ht (z,k)
 {-# Inline [0] streamDownStep #-}
 
 
-instance IndexStream (Z:.TreeIxR p a t) => IndexStream (TreeIxR p a t)
+instance IndexStream (Z:.TreeIxR p v a t) => IndexStream (TreeIxR p v a t)
 
