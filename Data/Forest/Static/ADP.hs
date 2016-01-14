@@ -1,9 +1,12 @@
+
+-- | Data structures and instances to combine efficient 'Forest' structures
+-- with @ADPfusion@.
+
 module Data.Forest.Static.ADP where
 
 import           Data.Either (either)
 import           Data.Graph.Inductive.Basic
 import           Data.Traversable (mapAccumL)
--- import           Data.Tree (drawForest,flatten)
 import qualified Data.Map.Strict as S
 import qualified Data.Tree as T
 import qualified Data.Vector as V
@@ -11,11 +14,10 @@ import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 
-import           Biobase.Newick (NewickTree(..),Info(Info))
-import qualified Biobase.Newick as N
 import           Data.Forest.Static
 import           ADP.Fusion
 import           Data.PrimitiveArray
+
 
 
 data TreeIxR p a t = TreeIxR !(Forest p a) !Int !Int
@@ -25,7 +27,8 @@ data instance RunningIndex (TreeIxR p a I) = RiTirI !Int
 instance Index (TreeIxR p a t) where
   linearIndex _ _ (TreeIxR _ l _) = l
   {-# Inline linearIndex #-}
-  -- smallest
+  smallestLinearIndex _ = error "still needed?"
+  {-# Inline smallestLinearIndex #-}
   largestLinearIndex (TreeIxR p _ _) = VU.length (parent p)
   {-# Inline largestLinearIndex #-}
   size _ (TreeIxR p _ _) = VU.length (parent p) + 1
@@ -58,3 +61,4 @@ streamDownStep p lf ht (z,k)
 
 
 instance IndexStream (Z:.TreeIxR p a t) => IndexStream (TreeIxR p a t)
+
