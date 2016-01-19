@@ -15,6 +15,7 @@ import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import           Data.Vector.Fusion.Stream.Monadic hiding (flatten)
 import           Prelude hiding (map)
+import           Debug.Trace
 import           Data.Strict.Tuple hiding (fst, snd)
 
 import           Data.Forest.Static
@@ -24,6 +25,14 @@ import           ADP.Fusion.SynVar.Indices
 
 
 data TreeIxR p v a t = TreeIxR !(Forest p v a) !Int !Int
+  deriving Show
+
+minIx, maxIx :: Forest p v a -> TreeIxR p v a t
+minIx f = TreeIxR f 0 0
+
+maxIx f = TreeIxR f 0 (VU.length (parent f) -1)
+{-# Inline minIx #-}
+{-# Inline maxIx #-}
 
 data instance RunningIndex (TreeIxR p v a I) = RiTirI !Int
 
@@ -46,7 +55,7 @@ instance IndexStream z => IndexStream (z:.TreeIxR p v a I) where
   {-# Inline streamUp #-}
   {-# Inline streamDown #-}
 
-streamUpMk ht z = return (z,ht)
+streamUpMk ht z = return (z,ht+1)
 {-# Inline [0] streamUpMk #-}
 
 streamUpStep p lf ht (z,k)
@@ -58,7 +67,7 @@ streamDownMk lf z = return (z,lf)
 {-# Inline [0] streamDownMk #-}
 
 streamDownStep p lf ht (z,k)
-  | k > ht    = return $ SM.Done
+  | k > ht+1    = return $ SM.Done
   | otherwise = return $ SM.Yield (z:.TreeIxR p k ht) (z,k+1)
 {-# Inline [0] streamDownStep #-}
 
@@ -115,6 +124,7 @@ instance
               let RiTirI l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
               in  TState s (ii:.:RiTirI (l+1)) (ee:.f xs l) )
     . termStream ts cs us is
+    . staticCheck (i<=j)
   {-# Inline termStream #-}
 
 
@@ -171,7 +181,7 @@ instance
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a I)
   ) => TermStream m (TermSymbol ts Deletion) s (is:.TreeIxR p v a I) where
-  termStream (ts:|Deletion) (cs:.IStatic ()) (us:.u) (is:.TreeIxR frst i j)
+  termStream (ts:|Deletion) (cs:.IVariable ()) (us:.u) (is:.TreeIxR frst i j)
     = map (\(TState s ii ee) ->
               let RiTirI l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
               in  TState s (ii:.:RiTirI l) (ee:.()) )
@@ -217,13 +227,20 @@ instance
       go (SvS s tt ii) =
         let RiTirI l' = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
             l         = if l' > j then u+1 else l'
-        in SvS s (tt:.TreeIxR frst l j) (ii:.:RiTirI (j+1))
+        in traceShow ("S"::String,l,j) $ SvS s (tt:.TreeIxR frst l j) (ii:.:RiTirI (j+1))
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst _ u) (is:.TreeIxR _ _ j)
     = map go . addIndexDenseGo cs vs us is
     where
       go (SvS s tt ii) =
         let RiTirI k  = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-            l'        = rsib frst `VU.unsafeIndex` k - 1
-            l         = if l' < 0 then u else l'
-        in SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI (l+1))
+            l'        = (rsib frst `VU.unsafeIndex` k) - 1
+            l         = if (k < VU.length (rsib frst)) && l' >= 0 then l' else u+1
+        in traceShow ("V"::String,rsib frst,k,l) $ SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI (l+1))
   {-# Inline addIndexDenseGo #-}
+
+
+instance (MinSize c) => TableStaticVar u c (TreeIxR p v a I) where 
+  tableStaticVar _ _ _ _ = IVariable ()
+  tableStreamIndex _ c _ (TreeIxR f i j) = TreeIxR f i (j- minSize c)
+  {-# Inline [0] tableStaticVar #-}
+  {-# Inline [0] tableStreamIndex #-}
