@@ -119,10 +119,11 @@ instance
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a I)
   ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxR p v a I) where
-  termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.u) (is:.TreeIxR frst i j)
+  termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxR _ _ u) (is:.TreeIxR frst i j)
     = map (\(TState s ii ee) ->
               let RiTirI l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-              in  TState s (ii:.:RiTirI (l+1)) (ee:.f xs l) )
+                  l' = if VG.length (children frst `VG.unsafeIndex` l) == 0 && rsib frst `VG.unsafeIndex` l == -1 then u+1 else l+1
+              in  TState s (ii:.:RiTirI l') (ee:.f xs l) )
     . termStream ts cs us is
     . staticCheck (i<=j)
   {-# Inline termStream #-}
@@ -234,7 +235,7 @@ instance
       go (SvS s tt ii) =
         let RiTirI k  = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
             l'        = (rsib frst `VU.unsafeIndex` k) - 1
-            l         = if (k < VU.length (rsib frst)) && l' >= 0 then l' else u+1
+            l         = if (k < VU.length (rsib frst)) && l' >= 0 then l' else u
         in traceShow ("V"::String,rsib frst,k,l) $ SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI (l+1))
   {-# Inline addIndexDenseGo #-}
 

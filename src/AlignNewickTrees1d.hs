@@ -36,6 +36,8 @@ T -> align <<< n F
 Emit: Global
 |]
 
+makeAlgebraProduct ''SigGlobal
+
 score :: Monad m => SigGlobal m Int Int Info
 score = SigGlobal
   { done  = \ () -> traceShow "EEEEEEEEEEEEE" 0 
@@ -46,6 +48,19 @@ score = SigGlobal
   , h     = SM.foldl' max (-99999)
   }
 {-# Inline score #-}
+
+
+pretty :: Monad m => SigGlobal m [(Info)] [[(Info)]] Info
+pretty = SigGlobal
+  { done  = \ () -> [(Info "bla" 0)]
+  , iter  = \ t f -> t ++ f
+  , align = \ a f -> (a) : f
+--  , indel = \ (b) f -> (b) : f
+--  , delin = \ (Z:.a:.()) f -> (a,Info "" 0) : f
+  , h     = SM.toList
+  }
+{-# Inline pretty #-}
+
 
 type Trix = TreeIxR Pre V.Vector Info I
 type Tbl x = ITbl Id Unboxed EmptyOk Trix x
@@ -59,17 +74,27 @@ runForward f1 f2 = mutateTablesDefault $
                    (node $ F.label f1)
 
 
+
+
+run :: Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,[[(Info)]])
+run f1 f2 = (fwd,take 1 . unId $ axiom fb)
+  where fwd@(Z:.f:.t) = runForward f1 f2
+        Z:.fb:.tb = gGlobal (score <|| pretty) (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
+                    (node $ F.label f1)
+
+
 test = do
-  let t1 = f "((b,c)e,d)a;"
+  let t1 = f "x;" --"((b,c)e,d)a;"
       --t2 = f "(b,(c,d)f)a;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""
   --print t2
   putStrLn ""
-  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _) = runForward t1 t1
+  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,bt) = run t1 t1
   print f
   print t
+  print bt
 
 main :: IO ()
 main = return ()
