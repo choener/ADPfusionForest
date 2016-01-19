@@ -79,10 +79,14 @@ executable AlignNewickTrees
     buildable:
       True
     build-depends:  base
+                 ,  ADPfusion
                  ,  ADPfusionForest
                  ,  BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
+                 ,  containers
                  ,  ForestStructures
                  ,  FormalGrammars         >= 0.3      &&  < 0.4
+                 ,  PrimitiveArray
+                 ,  vector
   else
     buildable:
       False
@@ -93,8 +97,15 @@ executable AlignNewickTrees
   default-language:
     Haskell2010
   default-extensions: BangPatterns
-                    , TemplateHaskell
+                    , DataKinds
+                    , FlexibleContexts
+                    , GADTs
+                    , MultiParamTypeClasses
+                    , OverloadedStrings
                     , QuasiQuotes
+                    , TemplateHaskell
+                    , TypeFamilies
+                    , TypeOperators
   ghc-options:
     -O2
     -funbox-strict-fields
