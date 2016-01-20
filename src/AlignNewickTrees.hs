@@ -26,12 +26,12 @@ N: T
 N: F
 T: n
 S: [F,F]
-[F,F] -> done  <<< [e,e]
 [F,F] -> iter  <<< [T,T] [F,F]
-[T,T] -> done  <<< [e,e]   --align (sub)tree with empty (sub)tree
-[T,T] -> align <<< [n,n] [F,F]
 [T,T] -> indel <<< [-,n] [F,F]
 [T,T] -> delin <<< [n,-] [F,F]
+[T,T] -> align <<< [n,n] [F,F]
+[F,F] -> done  <<< [e,e]
+[T,T] -> done  <<< [e,e]   --align (sub)tree with empty (sub)tree
 //
 
 Emit: Global
@@ -86,8 +86,8 @@ run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
 
 
 test = do
-  let t2 = f "(b,c)a;" --"(b,c)a;" --"((b,c)e,d)a;"
-      t1 = f "(b)a;" --"(b,c)a;" --"(b,(c,d)f)a;"
+  let t2 = f "b;a;" --"((b,c)e,d)a;"
+      t1 = f "a;"   -- "(b,(c,d)f)a;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""

@@ -42,7 +42,7 @@ score :: Monad m => SigGlobal m Int Int Info
 score = SigGlobal
   { done  = \ () -> traceShow "EEEEEEEEEEEEE" 0 
   , iter  = \ t f -> traceShow ("TFTFTFTFTF",t,f) $ t+f
-  , align = \ a f -> traceShow ("ALIGN",f,a) $ f + 1
+  , align = \ a f -> traceShow ("ALIGN",f,a) $ f + 100
 --  , indel = \ (Z:.():.b) f -> traceShow ("INDEL",f) $ f - 1 
 --  , delin = \ (Z:.a:.()) f -> traceShow ("DELIN",f) $ f - 1
   , h     = SM.foldl' max (-99999)
@@ -76,25 +76,26 @@ runForward f1 f2 = mutateTablesDefault $
 
 
 
-run :: Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,[[(Info)]])
-run f1 f2 = (fwd,take 1 . unId $ axiom fb)
+run :: Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,Int,[[(Info)]])
+run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
   where fwd@(Z:.f:.t) = runForward f1 f2
         Z:.fb:.tb = gGlobal (score <|| pretty) (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
                     (node $ F.label f1)
 
 
 test = do
-  let t1 = f "x;" --"((b,c)e,d)a;"
+  let t1 = f "(d,b,c)a;" --"((b,c)e,d)a;"
       --t2 = f "(b,(c,d)f)a;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""
   --print t2
   putStrLn ""
-  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,bt) = run t1 t1
+  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt) = run t1 t1
   print f
   print t
   print bt
+  print sc
 
 main :: IO ()
 main = return ()

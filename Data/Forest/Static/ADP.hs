@@ -37,13 +37,13 @@ maxIx f = TreeIxR f 0 (VU.length (parent f))
 data instance RunningIndex (TreeIxR p v a I) = RiTirI !Int
 
 instance Index (TreeIxR p v a t) where
-  linearIndex _ _ (TreeIxR _ l _) = l
+  linearIndex _ (TreeIxR _ _ u) (TreeIxR _ i j) = if i==j then u else i
   {-# Inline linearIndex #-}
   smallestLinearIndex _ = error "still needed?"
   {-# Inline smallestLinearIndex #-}
   largestLinearIndex (TreeIxR p _ _) = VU.length (parent p)
   {-# Inline largestLinearIndex #-}
-  size _ (TreeIxR p _ _) = VU.length (parent p) + 1 -- epsilon mapping
+  size _ (TreeIxR p _ _) = VU.length (parent p) +1 -- epsilon mapping
   {-# Inline size #-}
   inBounds _ (TreeIxR p _ _) (TreeIxR _ l r) = 0 <= l && r <= VU.length (parent p)
   {-# Inline inBounds #-}
@@ -122,7 +122,7 @@ instance
   termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxR _ _ u) (is:.TreeIxR frst i j)
     = map (\(TState s ii ee) ->
               let RiTirI l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                  l' = if VG.length (children frst `VG.unsafeIndex` l) == 0 && rsib frst `VG.unsafeIndex` l == -1 then u else l+1
+                  l' = if VG.length (children frst `VG.unsafeIndex` l) == 0 then u else l+1
               in  TState s (ii:.:RiTirI l') (ee:.f xs l) )
     . termStream ts cs us is
     . staticCheck (i<j)
