@@ -86,8 +86,8 @@ run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
 
 
 test = do
-  let t2 = f "((b,c)e,d)a;"
-      t1 = f "(b,(c,d)f)a;"
+  let t2 = f "(b,c)a;" --"(b,c)a;" --"((b,c)e,d)a;"
+      t1 = f "(b)a;" --"(b,c)a;" --"(b,(c,d)f)a;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""

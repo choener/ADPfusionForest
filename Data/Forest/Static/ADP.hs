@@ -235,13 +235,16 @@ instance
       go (SvS s tt ii) =
         let RiTirI k  = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
             l'        = (rsib frst `VU.unsafeIndex` k)
-            l         = if l' >= 0 then l' else u
+            l         = if l' >= 0 then l' else j
         in traceShow ("V"::String,rsib frst,k,l) $ SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI l)
   {-# Inline addIndexDenseGo #-}
 
 
 instance (MinSize c) => TableStaticVar u c (TreeIxR p v a I) where 
   tableStaticVar _ _ _ _ = IVariable ()
-  tableStreamIndex _ c _ (TreeIxR f i j) = TreeIxR f i (j- minSize c)
+  tableStreamIndex _ c _ (TreeIxR f i j)
+    | k >= 0 = TreeIxR f i k
+    | otherwise = TreeIxR f i j
+    where k = rsib f `VU.unsafeIndex` i
   {-# Inline [0] tableStaticVar #-}
   {-# Inline [0] tableStreamIndex #-}
