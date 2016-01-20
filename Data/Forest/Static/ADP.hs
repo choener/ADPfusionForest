@@ -230,15 +230,29 @@ instance
             l         = if l' >= j then u else l'
         in traceShow ("S"::String,l,j) $ SvS s (tt:.TreeIxR frst l j) (ii:.:RiTirI (j))
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst _ u) (is:.TreeIxR _ _ j)
-    = map go . addIndexDenseGo cs vs us is
+    = flatten mk step . addIndexDenseGo cs vs us is
+    where mk svS = return $ Just $ Left svS
+          step Nothing = return $ Done
+          step (Just (Left svS@(SvS s tt ii))) = do let RiTirI k  = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                                                    return $ Yield (SvS s (tt:.TreeIxR frst k k) (ii:.:RiTirI k)) (Just (Right svS))
+          step (Just (Right (SvS s tt ii))) = do let RiTirI k  = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                                                     l'        = (rsib frst `VU.unsafeIndex` k)
+                                                     l         = if l' >= 0 then l' else j
+                                                 return $ Yield (SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI l)) Nothing
+          {-# Inline [0] mk #-}
+          {-# Inline [0] step #-}
+  {-# Inline addIndexDenseGo #-}
+
+{-
+  = map go . addIndexDenseGo cs vs us is
     where
       go (SvS s tt ii) =
         let RiTirI k  = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
             l'        = (rsib frst `VU.unsafeIndex` k)
             l         = if l' >= 0 then l' else j
         in traceShow ("V"::String,rsib frst,k,l) $ SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI l)
-  {-# Inline addIndexDenseGo #-}
 
+-}
 
 instance (MinSize c) => TableStaticVar u c (TreeIxR p v a I) where 
   tableStaticVar _ _ _ _ = IVariable ()
