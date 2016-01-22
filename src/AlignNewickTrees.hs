@@ -41,11 +41,11 @@ makeAlgebraProduct ''SigGlobal
 
 score :: Monad m => SigGlobal m Int Int Info Info
 score = SigGlobal
-  { done  = \ (Z:.():.()) -> traceShow "EEEEEEEEEEEEE" 0
-  , iter  = \ t f -> traceShow ("TFTFTFTFTF",t,f) $ t+f
-  , align = \ (Z:.a:.b) f -> traceShow ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -11
-  , indel = \ (Z:.():.b) f -> traceShow ("INDEL",f,b) $ f - 5 
-  , delin = \ (Z:.a:.()) f -> traceShow ("DELIN",f,a) $ f - 3
+  { done  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
+  , iter  = \ t f -> traceShow ("TF",t,f) $ t+f
+  , align = \ (Z:.a:.b) f -> {- traceShow ("ALIGN",f,a,b) $ -} f + if label a == label b then 100 else -11
+  , indel = \ (Z:.():.b) f -> {- traceShow ("INDEL",f,b) $ -} f - 5 
+  , delin = \ (Z:.a:.()) f -> {- traceShow ("DELIN",f,a) $ -} f - 3
   , h     = SM.foldl' max (-88888)
   }
 {-# Inline score #-}
@@ -53,8 +53,8 @@ score = SigGlobal
 
 pretty :: Monad m => SigGlobal m [(Info,Info)] [[(Info,Info)]] Info Info
 pretty = SigGlobal
-  { done  = \ (Z:.():.()) -> [(Info "" 0, Info "" 0)]
-  , iter  = \ t f -> (Info "i1" 0, Info "i2" 0) : t ++ f
+  { done  = \ (Z:.():.()) -> [] -- [(Info "" 0, Info "" 0)]
+  , iter  = \ t f -> t++f -- (Info "i1" 0, Info "i2" 0) : t ++ f
   , align = \ (Z:.a:.b) f -> (a,b) : f
   , indel = \ (Z:.():.b) f -> (Info "-" 0,b) : f
   , delin = \ (Z:.a:.()) f -> (a,Info "-" 0) : f
@@ -85,9 +85,21 @@ run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
                     (node $ F.label f1) (node $ F.label f2)
 
 
+--         a            a
+--        / \          / \
+--       e   d        b   f
+--      / \              / \
+--     b   c            c   d
+--
+--               (a,a)                  100
+--              /      \
+--         (e,-)         (-,f)          (-3) (-5)
+--        /     \         /   \
+--   (b,b)       (c,-) (-,c)   (d,d)    100  (-3) (-5) 100
+
 test = do
-  let t1 = f "a;"    --"((b,c)e,d)a;"    -- '-3'
-      t2 = f "" --"(b,(c,d)f)a;"
+  let t1 = f "((b,c)e,d)a;"    -- '-3'
+      t2 = f "(b,(c,d)f)a;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""
@@ -99,9 +111,9 @@ test = do
   mapM_ print $ assocs t
   --print f
   --print t
-  --forM_ bt $ \b -> do
-  --  putStrLn ""
-  --  forM_ b $ \x -> print x
+  forM_ bt $ \b -> do
+    putStrLn ""
+    forM_ b $ \x -> print x
   print sc
 
 
