@@ -34,16 +34,19 @@ maxIx f = TreeIxR f 0 (VU.length (parent f))
 {-# Inline minIx #-}
 {-# Inline maxIx #-}
 
-data instance RunningIndex (TreeIxR p v a I) = RiTirI !Int
+data TF = T | F
+  deriving (Show,Eq,Ord)
+
+data instance RunningIndex (TreeIxR p v a I) = RiTirI !Int !TF
 
 instance Index (TreeIxR p v a t) where
-  linearIndex _ (TreeIxR _ _ u) (TreeIxR _ i j) = if i==j then u else i
+  linearIndex _ (TreeIxR _ _ u) (TreeIxR _ i j) = if i==j then u else if j==u then i+u else i
   {-# Inline linearIndex #-}
   smallestLinearIndex _ = error "still needed?"
   {-# Inline smallestLinearIndex #-}
-  largestLinearIndex (TreeIxR p _ _) = VU.length (parent p)
+  largestLinearIndex (TreeIxR p _ _) = VU.length (parent p)*2
   {-# Inline largestLinearIndex #-}
-  size _ (TreeIxR p _ _) = VU.length (parent p) +1 -- epsilon mapping
+  size _ (TreeIxR p _ _) = (VU.length (parent p) +1)*2 -- epsilon mapping
   {-# Inline size #-}
   inBounds _ (TreeIxR p _ _) (TreeIxR _ l r) = 0 <= l && r <= VU.length (parent p)
   {-# Inline inBounds #-}
@@ -55,20 +58,26 @@ instance IndexStream z => IndexStream (z:.TreeIxR p v a I) where
   {-# Inline streamUp #-}
   {-# Inline streamDown #-}
 
-streamUpMk ht z = return (z,ht)
+streamUpMk ht z = return (z,ht,T)
 {-# Inline [0] streamUpMk #-}
 
-streamUpStep p lf ht (z,k)
+streamUpStep p lf ht (z,k,tf)
   | k < lf    = return $ SM.Done
-  | otherwise = return $ SM.Yield (z:.TreeIxR p k ht) (z,k-1)
+  | tf == T   = return $ SM.Yield (z:.TreeIxR p k r') (z,k,F)
+  | otherwise = return $ SM.Yield (z:.TreeIxR p k ht) (z,k-1,T)
+  where r = rsib p VG.!k
+        r' = if k== ht || r == -1 then ht else r
 {-# Inline [0] streamUpStep #-}
 
-streamDownMk lf z = return (z,lf)
+streamDownMk lf z = return (z,lf,F)
 {-# Inline [0] streamDownMk #-}
 
-streamDownStep p lf ht (z,k)
+streamDownStep p lf ht (z,k,tf)
   | k > ht    = return $ SM.Done
-  | otherwise = return $ SM.Yield (z:.TreeIxR p k ht) (z,k+1)
+  | tf==F = return $ SM.Yield (z:.TreeIxR p k ht) (z,k,T)
+  | otherwise = return $ SM.Yield (z:.TreeIxR p k r') (z,k+1,F)
+  where r = rsib p VG.!k
+        r' = if k==ht || r == -1 then ht else r
 {-# Inline [0] streamDownStep #-}
 
 
@@ -121,9 +130,9 @@ instance
   ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxR p v a I) where
   termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxR _ _ u) (is:.TreeIxR frst i j)
     = map (\(TState s ii ee) ->
-              let RiTirI l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+              let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                   l' = if VG.length (children frst `VG.unsafeIndex` l) == 0 then u else l+1
-              in  TState s (ii:.:RiTirI l') (ee:.f xs l) )
+              in  TState s (ii:.:RiTirI l' F) (ee:.f xs l) )
     . termStream ts cs us is
     . staticCheck (i<j)
   {-# Inline termStream #-}
@@ -153,8 +162,8 @@ instance
   ) => TermStream m (TermSymbol ts Epsilon) s (is:.TreeIxR p v a I) where
   termStream (ts:|Epsilon) (cs:.IStatic ()) (us:.u) (is:.TreeIxR frst i j)
     = map (\(TState s ii ee) ->
-              let RiTirI l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-              in  TState s (ii:.:RiTirI l) (ee:.()) )
+              let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+              in  TState s (ii:.:RiTirI l tf) (ee:.()) )
     . termStream ts cs us is
     . staticCheck (i>=j)
   {-# Inline termStream #-}
@@ -184,8 +193,8 @@ instance
   ) => TermStream m (TermSymbol ts Deletion) s (is:.TreeIxR p v a I) where
   termStream (ts:|Deletion) (cs:.IVariable ()) (us:.u) (is:.TreeIxR frst i j)
     = map (\(TState s ii ee) ->
-              let RiTirI l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-              in  TState s (ii:.:RiTirI l) (ee:.()) )
+              let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+              in  TState s (ii:.:RiTirI l tf) (ee:.()) )
     . termStream ts cs us is
   {-# Inline termStream #-}
 
@@ -201,7 +210,7 @@ instance TermStaticVar Deletion (TreeIxR p v a I) where
 
 instance (Monad m) => MkStream m S (TreeIxR p v a I) where
   mkStream S _ (TreeIxR frst l u) (TreeIxR _ i j)
-    = staticCheck (i>=0 && j<=u) . singleton . ElmS $ RiTirI i
+    = staticCheck (i>=0 && j<=u) . singleton . ElmS $ RiTirI i (if j==u then F else T)
   {-# Inline mkStream #-}
 
 
@@ -210,7 +219,7 @@ instance
   , MkStream m S is
   ) => MkStream m S (is:.TreeIxR p v a I) where
   mkStream S (vs:._) (lus:.TreeIxR frst l u) (is:.TreeIxR _ i j)
-    = map (\(ElmS zi) -> ElmS $ zi :.: RiTirI i)
+    = map (\(ElmS zi) -> ElmS $ zi :.: RiTirI i (if j==u then F else T))
     . staticCheck (i>=0 && j<=u)
     $ mkStream S vs lus is
   {-# INLINE mkStream #-}
@@ -226,19 +235,21 @@ instance
     = map go . addIndexDenseGo cs vs us is
     where
       go (SvS s tt ii) =
-        let RiTirI l' = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+        let RiTirI l' tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
             l         = if l' >= j then u else l'
-        in traceShow ("S"::String,l,j) $ SvS s (tt:.TreeIxR frst l j) (ii:.:RiTirI (j))
+            r = max l $ rsib frst VG.!l
+            r' = if tf == F || l >= u then u else r
+        in traceShow ("S"::String,l,j,r') $ SvS s (tt:.TreeIxR frst l r') (ii:.:RiTirI j tf)
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst _ u) (is:.TreeIxR _ _ j)
     = flatten mk step . addIndexDenseGo cs vs us is
     where mk svS = return $ Just $ Left svS
           step Nothing = return $ Done
-          step (Just (Left svS@(SvS s tt ii))) = do let RiTirI k  = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                                                    return $ Yield (SvS s (tt:.TreeIxR frst k k) (ii:.:RiTirI k)) (Just (Right svS))
-          step (Just (Right (SvS s tt ii))) = do let RiTirI k  = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+          step (Just (Left svS@(SvS s tt ii))) = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                                                    return $ Yield (SvS s (tt:.TreeIxR frst k k) (ii:.:RiTirI k F)) (Just (Right svS))
+          step (Just (Right (SvS s tt ii))) = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                                                      l'        = (rsib frst `VU.unsafeIndex` k)
                                                      l         = if l' >= 0 then l' else j
-                                                 return $ traceShow ("V"::String,rsib frst,k,l) $ Yield (SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI l)) Nothing
+                                                 return $ traceShow ("V"::String,rsib frst,k,l) $ Yield (SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI l F)) Nothing
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
