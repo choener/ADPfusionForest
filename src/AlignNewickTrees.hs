@@ -41,7 +41,7 @@ makeAlgebraProduct ''SigGlobal
 
 score :: Monad m => SigGlobal m Int Int Info Info
 score = SigGlobal
-  { done  = \ (Z:.():.()) -> traceShow "EEEEEEEEEEEEE" 0 
+  { done  = \ (Z:.():.()) -> traceShow "EEEEEEEEEEEEE" 0
   , iter  = \ t f -> traceShow ("TFTFTFTFTF",t,f) $ t+f
   , align = \ (Z:.a:.b) f -> traceShow ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -11
   , indel = \ (Z:.():.b) f -> traceShow ("INDEL",f,b) $ f - 5 
@@ -86,8 +86,8 @@ run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
 
 
 test = do
-  let t1 = f "b;a;"    --"((b,c)e,d)a;"
-      t2 = f "a;" --"(b,(c,d)f)a;"
+  let t1 = f "a;"    --"((b,c)e,d)a;"    -- '-3'
+      t2 = f "" --"(b,(c,d)f)a;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""
@@ -99,9 +99,9 @@ test = do
   mapM_ print $ assocs t
   --print f
   --print t
-  forM_ bt $ \b -> do
-    putStrLn ""
-    forM_ b $ \x -> print x
+  --forM_ bt $ \b -> do
+  --  putStrLn ""
+  --  forM_ b $ \x -> print x
   print sc
 
 
