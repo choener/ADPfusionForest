@@ -46,7 +46,7 @@ score = SigGlobal
   , align = \ (Z:.a:.b) f -> traceShow ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -11
   , indel = \ (Z:.():.b) f -> traceShow ("INDEL",f,b) $ f - 5 
   , delin = \ (Z:.a:.()) f -> traceShow ("DELIN",f,a) $ f - 3
-  , h     = SM.foldl' max (-99999)
+  , h     = SM.foldl' max (-88888)
   }
 {-# Inline score #-}
 
@@ -86,16 +86,19 @@ run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
 
 
 test = do
-  let t2 = f "b;"    --"((b,c)e,d)a;"
-      t1 = f "b;" --"(b,(c,d)f)a;"
+  let t1 = f "b;a;"    --"((b,c)e,d)a;"
+      t2 = f "a;" --"(b,(c,d)f)a;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""
   print t2
   putStrLn ""
   let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt) = run t1 t2
-  print f
-  print t
+  mapM_ print $ assocs f
+  print ""
+  mapM_ print $ assocs t
+  --print f
+  --print t
   forM_ bt $ \b -> do
     putStrLn ""
     forM_ b $ \x -> print x

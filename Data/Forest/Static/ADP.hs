@@ -25,7 +25,9 @@ import           ADP.Fusion.SynVar.Indices
 
 
 data TreeIxR p v a t = TreeIxR !(Forest p v a) !Int !Int
-  deriving Show
+
+instance Show (TreeIxR p v a t) where
+  show (TreeIxR _ i j) = show (i,j)
 
 minIx, maxIx :: Forest p v a -> TreeIxR p v a t
 minIx f = TreeIxR f 0 0
@@ -35,18 +37,36 @@ maxIx f = TreeIxR f 0 (VU.length (parent f))
 {-# Inline maxIx #-}
 
 data TF = T | F
-  deriving (Show,Eq,Ord)
+  deriving (Show,Eq,Ord,Enum,Bounded)
+
+instance Index TF where
+  linearIndex _ _ tf = fromEnum tf
+  {-# Inline linearIndex #-}
+  smallestLinearIndex _ = fromEnum (minBound :: TF)
+  {-# Inline smallestLinearIndex #-}
+  largestLinearIndex _ = fromEnum (maxBound :: TF)
+  {-# Inline largestLinearIndex #-}
+  size _ _ = fromEnum (maxBound :: TF) + 1
+  {-# Inline size #-}
+  inBounds _ u k = k <= u
+  {-# Inline inBounds #-}
+
 
 data instance RunningIndex (TreeIxR p v a I) = RiTirI !Int !TF
 
 instance Index (TreeIxR p v a t) where
-  linearIndex _ (TreeIxR _ _ u) (TreeIxR _ i j) = if i==j then u else if j==u then i+u else i
+  -- | trees @T@ are stored in the first line, i.e. @+0@, forests @F@ (with
+  -- @j==u@ are stored in the second line, i.e. @+u+1@ to each index.
+  linearIndex (TreeIxR _ l _) (TreeIxR _ _ u) (TreeIxR _ i j)
+    = let k = if i==j then u else i
+      in  linearIndex (Z:.l:.T) (Z:.u:.F) (Z:.k:.(if u==j then F else T))
   {-# Inline linearIndex #-}
   smallestLinearIndex _ = error "still needed?"
   {-# Inline smallestLinearIndex #-}
-  largestLinearIndex (TreeIxR p _ _) = VU.length (parent p)*2
+  largestLinearIndex (TreeIxR p _ u) = largestLinearIndex (Z:.u:.F) --  (VU.length (parent p) +1)*2
   {-# Inline largestLinearIndex #-}
-  size _ (TreeIxR p _ _) = (VU.length (parent p) +1)*2 -- epsilon mapping
+  --size _ (TreeIxR p _ _) = (VU.length (parent p) +1)*2 + 1 -- epsilon mapping
+  size (TreeIxR _ l _) (TreeIxR _ _ u) = size (Z:.l:.T) (Z:.u:.F)
   {-# Inline size #-}
   inBounds _ (TreeIxR p _ _) (TreeIxR _ l r) = 0 <= l && r <= VU.length (parent p)
   {-# Inline inBounds #-}
@@ -74,7 +94,7 @@ streamDownMk lf z = return (z,lf,F)
 
 streamDownStep p lf ht (z,k,tf)
   | k > ht    = return $ SM.Done
-  | tf==F = return $ SM.Yield (z:.TreeIxR p k ht) (z,k,T)
+  | tf == F   = return $ SM.Yield (z:.TreeIxR p k ht) (z,k,T)
   | otherwise = return $ SM.Yield (z:.TreeIxR p k r') (z,k+1,F)
   where r = rsib p VG.!k
         r' = if k==ht || r == -1 then ht else r
@@ -96,7 +116,7 @@ data Node r x where
        -> Node r x
 
 node :: VG.Vector v x => v x -> Node x x
-node = Node VG.unsafeIndex
+node = Node (VG.!)
 {-# Inline node #-}
 
 instance Build (Node r x)
@@ -131,8 +151,8 @@ instance
   termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxR _ _ u) (is:.TreeIxR frst i j)
     = map (\(TState s ii ee) ->
               let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                  l' = if VG.length (children frst `VG.unsafeIndex` l) == 0 then u else l+1
-              in  TState s (ii:.:RiTirI l' F) (ee:.f xs l) )
+                  l' = if VG.length (children frst VG.! l) == 0 then u else l+1
+              in  traceShow (i,j,l') $ TState s (ii:.:RiTirI l' F) (ee:.f xs l) )
     . termStream ts cs us is
     . staticCheck (i<j)
   {-# Inline termStream #-}
@@ -235,41 +255,40 @@ instance
     = map go . addIndexDenseGo cs vs us is
     where
       go (SvS s tt ii) =
-        let RiTirI l' tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-            l         = if l' >= j then u else l'
-            r = max l $ rsib frst VG.!l
-            r' = if tf == F || l >= u then u else r
-        in traceShow ("S"::String,l,j,r') $ SvS s (tt:.TreeIxR frst l r') (ii:.:RiTirI j tf)
+        let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+            r | tf == F = u
+              | tf == T = rbdef (l+1) frst l
+        in traceShow ("S~"::String,u,l,r,j) $ SvS s (tt:.TreeIxR frst l r) (ii:.:RiTirI r tf)
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst _ u) (is:.TreeIxR _ _ j)
     = flatten mk step . addIndexDenseGo cs vs us is
     where mk svS = return $ Just $ Left svS
           step Nothing = return $ Done
           step (Just (Left svS@(SvS s tt ii))) = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                                                    return $ Yield (SvS s (tt:.TreeIxR frst k k) (ii:.:RiTirI k F)) (Just (Right svS))
+                                                    traceShow ("T0~"::String,u,k,k) $ return $ Yield (SvS s (tt:.TreeIxR frst k k) (ii:.:RiTirI k F)) (Just (Right svS))
           step (Just (Right (SvS s tt ii))) = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                                                     l'        = (rsib frst `VU.unsafeIndex` k)
-                                                     l         = if l' >= 0 then l' else j
-                                                 return $ traceShow ("V"::String,rsib frst,k,l) $ Yield (SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI l F)) Nothing
+                                                     l         = rbdef (k+1) frst k
+                                                 traceShow ("T1~"::String,u,k,l) $ return $ Yield (SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI l F)) Nothing
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
 
-{-
-  = map go . addIndexDenseGo cs vs us is
-    where
-      go (SvS s tt ii) =
-        let RiTirI k  = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-            l'        = (rsib frst `VU.unsafeIndex` k)
-            l         = if l' >= 0 then l' else j
-        in traceShow ("V"::String,rsib frst,k,l) $ SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI l)
 
--}
 
 instance (MinSize c) => TableStaticVar u c (TreeIxR p v a I) where 
   tableStaticVar _ _ _ _ = IVariable ()
   tableStreamIndex _ c _ (TreeIxR f i j)
-    | k >= 0 = TreeIxR f i k
+--    | k >= 0 = TreeIxR f i k
     | otherwise = TreeIxR f i j
-    where k = rsib f `VU.unsafeIndex` i
+    where k = getrbound f i -- rsib f VG.! i
   {-# Inline [0] tableStaticVar #-}
   {-# Inline [0] tableStreamIndex #-}
+
+getrbound frst k
+  | VG.length rs >= k = VG.length rs
+  | r < 0             = VG.length rs
+  | otherwise         = r
+  where rs = rsib frst ; r = rs VG.! k
+{-# Inline getrbound #-}
+
+rbdef d frst k = maybe d (\z -> if z<0 then d else z) $ rsib frst VG.!? k
+{-# Inline rbdef #-}
