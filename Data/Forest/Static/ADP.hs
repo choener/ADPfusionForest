@@ -145,7 +145,7 @@ instance
   termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxR _ u ut) (is:.TreeIxR frst i it)
     = map (\(TState s ii ee) ->
               let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                  l' = if VG.length (children frst VG.! l) == 0 then u else l+1
+                  l' = if VG.null (children frst VG.! l) then u else l+1
               in  traceShow ("N"::String,l,tf) $ TState s (ii:.:RiTirI l' F) (ee:.f xs l) )
     . termStream ts cs us is
     . staticCheck (i<u && it == T)
