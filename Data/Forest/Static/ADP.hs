@@ -238,7 +238,7 @@ instance
           step (Just (Right (SvS s tt ii))) = do let RiTirI k  = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                                                      l'        = (rsib frst `VU.unsafeIndex` k)
                                                      l         = if l' >= 0 then l' else j
-                                                 return $ Yield (SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI l)) Nothing
+                                                 return $ traceShow ("V"::String,rsib frst,k,l) $ Yield (SvS s (tt:.TreeIxR frst k l) (ii:.:RiTirI l)) Nothing
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}

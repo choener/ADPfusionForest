@@ -43,9 +43,9 @@ score :: Monad m => SigGlobal m Int Int Info Info
 score = SigGlobal
   { done  = \ (Z:.():.()) -> traceShow "EEEEEEEEEEEEE" 0 
   , iter  = \ t f -> traceShow ("TFTFTFTFTF",t,f) $ t+f
-  , align = \ (Z:.a:.b) f -> traceShow ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -4
-  , indel = \ (Z:.():.b) f -> traceShow ("INDEL",f,b) $ f - 1 
-  , delin = \ (Z:.a:.()) f -> traceShow ("DELIN",f,a) $ f - 1
+  , align = \ (Z:.a:.b) f -> traceShow ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -1
+  , indel = \ (Z:.():.b) f -> traceShow ("INDEL",f,b) $ f - 5 
+  , delin = \ (Z:.a:.()) f -> traceShow ("DELIN",f,a) $ f - 3
   , h     = SM.foldl' max (-99999)
   }
 {-# Inline score #-}
@@ -86,8 +86,8 @@ run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
 
 
 test = do
-  let t2 = f "((b,c)e,d)a;"
-      t1 = f "(b,(c,d)f)a;"
+  let t2 = f "(b)d;"    --"((b,c)e,d)a;"
+      t1 = f "b;f;" --"(b,(c,d)f)a;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""
