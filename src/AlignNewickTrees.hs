@@ -3,6 +3,7 @@ module Main where
 
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector as V
+import qualified Data.Vector.Generic as VG
 import Control.Monad(forM_)
 import Data.Vector.Fusion.Util
 import qualified Data.Tree as T
@@ -91,29 +92,33 @@ run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
 --      / \              / \
 --     b   c            c   d
 --
---               (a,a)                  100
---              /      \
---         (e,-)         (-,f)          (-3) (-5)
---        /     \         /   \
---   (b,b)       (c,-) (-,c)   (d,d)    100  (-3) (-5) 100
+--                  (a,a)                 100
+--              /          \
+--         (e,-)            (-,f)         (-3) (-5)
+--        /     \          /     \
+--   (b,b)       (c,-) (-,c)      (d,d)   100  (-3) (-5) 100
 --
---         (a,a)                        100
+--
+--
+--         (a,a)                          100
 --        /     \
---   (-,b)       (-,f)                  (-5) (-5)
+--   (-,b)       (-,f)                    (-5) (-5)
 --              /     \
---         (e,-)       (d,d)            (-3)  100
+--         (e,-)       (d,d)              (-3)  100
 --        /     \
---   (b,-)       (c,c)                  (-3)  100
+--   (b,-)       (c,c)                    (-3)  100
 
 test = do
-  let t1 = f "(b,c)a;" -- "((b,c)e,d)a;"    -- '-3'
-      t2 = f "b;c;" -- "(b,(c,d)f)a;"
+--  let t1 = f "((b,c)e,d)a;"    -- '-3'
+--      t2 = f "(b,(c,d)f)a;"
+  let t1 = f "b;c;"
+      t2 = f "b;c;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""
   print t2
   putStrLn ""
-  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt) = run t1 t2
+  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt) = run t1 (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
   mapM_ print $ assocs f
   print ""
   mapM_ print $ assocs t
