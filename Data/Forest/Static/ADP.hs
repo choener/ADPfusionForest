@@ -146,7 +146,7 @@ instance
     = map (\(TState s ii ee) ->
               let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                   l' = if VG.null (children frst VG.! l) then u else l+1
-              in  traceShow ("N"::String,l,tf) $ TState s (ii:.:RiTirI l' F) (ee:.f xs l) )
+              in  {- traceShow ("N"::String,l,tf) $ -} TState s (ii:.:RiTirI l' F) (ee:.f xs l) )
     . termStream ts cs us is
     . staticCheck (i<u && it == T)
   {-# Inline termStream #-}
@@ -208,7 +208,7 @@ instance
   termStream (ts:|Deletion) (cs:.IVariable ()) (us:.u) (is:.TreeIxR frst i ii)
     = map (\(TState s ii ee) ->
               let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-              in  traceShow ("-"::String,l,tf) $ TState s (ii:.:RiTirI l T) (ee:.()) )
+              in  {- traceShow ("-"::String,l,tf) $ -} TState s (ii:.:RiTirI l T) (ee:.()) )
     . termStream ts cs us is
     . staticCheck (ii == T)
   {-# Inline termStream #-}
@@ -251,19 +251,21 @@ instance
     where
       go (SvS s tt ii) =
         let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-        in traceShow ('S',l,tf) $ SvS s (tt:.TreeIxR frst (min l u) tf) (ii:.:RiTirI u F)
+        in {- traceShow ('S',l,tf) $ -} SvS s (tt:.TreeIxR frst (min l u) tf) (ii:.:RiTirI u F)
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j _)
     = flatten mk step . addIndexDenseGo cs vs us is
     where mk svS = return $ Just $ Left svS
           step Nothing = return $ Done
+          --step _ | j > u = return $ Done
           step (Just (Left svS@(SvS s tt ii)))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                 traceShow ('V',u,k,tf) . return $ Yield (SvS s (tt:.TreeIxR frst u T) (ii:.:RiTirI k F)) (Just (Right svS))
-          step _ | j > u = return $ Done
+                 {- traceShow ('V',u,k,tf) . -}
+                 return $ Yield (SvS s (tt:.TreeIxR frst u T) (ii:.:RiTirI k F)) (Just (Right svS))
           step (Just (Right (SvS s tt ii)))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      l         = rbdef u frst k
-                 traceShow ('W',u,k,tf) . return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l F)) Nothing
+                 {- traceShow ('W',u,k,tf) . -}
+                 return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l F)) Nothing
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}

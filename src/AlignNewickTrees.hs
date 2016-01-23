@@ -45,7 +45,7 @@ score = SigGlobal
   , iter  = \ t f -> traceShow ("TF",t,f) $ t+f
   , align = \ (Z:.a:.b) f -> traceShow ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -11
   , indel = \ (Z:.():.b) f -> traceShow ("INDEL",f,b) $ f - 5
-  , delin = \ (Z:.a:.()) f -> {- traceShow ("DELIN",f,a) $ -} f - 3
+  , delin = \ (Z:.a:.()) f -> traceShow ("DELIN",f,a) $ f - 3
   , h     = SM.foldl' max (-88888)
   }
 {-# Inline score #-}
