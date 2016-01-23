@@ -205,11 +205,12 @@ instance
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a I)
   ) => TermStream m (TermSymbol ts Deletion) s (is:.TreeIxR p v a I) where
-  termStream (ts:|Deletion) (cs:.IVariable ()) (us:.u) (is:.TreeIxR frst i j)
+  termStream (ts:|Deletion) (cs:.IVariable ()) (us:.u) (is:.TreeIxR frst i ii)
     = map (\(TState s ii ee) ->
               let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
               in  traceShow ("-"::String,l,tf) $ TState s (ii:.:RiTirI l T) (ee:.()) )
     . termStream ts cs us is
+    . staticCheck (ii == T)
   {-# Inline termStream #-}
 
 
