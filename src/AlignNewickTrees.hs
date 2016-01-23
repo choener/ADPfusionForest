@@ -43,7 +43,7 @@ makeAlgebraProduct ''SigGlobal
 score :: Monad m => SigGlobal m Int Int Info Info
 score = SigGlobal
   { done  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
-  , iter  = \ t f -> traceShow ("TF",t,f) $ t+f
+  , iter  = \ t f -> traceShow ("TFTFTFTFTF",t,f) $ t+f
   , align = \ (Z:.a:.b) f -> traceShow ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -11
   , indel = \ (Z:.():.b) f -> traceShow ("INDEL",f,b) $ f - 5
   , delin = \ (Z:.a:.()) f -> traceShow ("DELIN",f,a) $ f - 3
@@ -111,14 +111,14 @@ run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
 test = do
 --  let t1 = f "((b,c)e,d)a;"    -- '-3'
 --      t2 = f "(b,(c,d)f)a;"
-  let t1 = f "b;c;"
-      t2 = f "b;c;"
+  let t1 = f "(b:1,c:1)a:1;"
+      t2 = f "b:2;c:2;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""
   print t2
   putStrLn ""
-  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt) = run t1 (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt) = run t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
   mapM_ print $ assocs f
   print ""
   mapM_ print $ assocs t

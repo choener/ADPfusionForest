@@ -17,6 +17,8 @@ import           Data.Vector.Fusion.Stream.Monadic hiding (flatten)
 import           Prelude hiding (map)
 import           Debug.Trace
 import           Data.Strict.Tuple hiding (fst, snd)
+import qualified Data.Forest.Static as F
+import Biobase.Newick
 
 import           Data.Forest.Static
 import           ADP.Fusion
@@ -208,7 +210,7 @@ instance
   termStream (ts:|Deletion) (cs:.IVariable ()) (us:.u) (is:.TreeIxR frst i ii)
     = map (\(TState s ii ee) ->
               let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-              in  {- traceShow ("-"::String,l,tf) $ -} TState s (ii:.:RiTirI l T) (ee:.()) )
+              in  {- traceShow ("-"::String,l,tf) $ -} TState s (ii:.:RiTirI l tf) (ee:.()) )
     . termStream ts cs us is
     . staticCheck (ii == T)
   {-# Inline termStream #-}
@@ -245,13 +247,15 @@ instance
 instance
   ( IndexHdr s x0 i0 us (TreeIxR p v a I) cs c is (TreeIxR p v a I)
   , MinSize c
+  , Show a, VG.Vector v a -- TEMP!
+  , a ~ Info
   ) => AddIndexDense s (us:.TreeIxR p v a I) (cs:.c) (is:.TreeIxR p v a I) where
   addIndexDenseGo (cs:._) (vs:.IStatic ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j _)
     = map go . addIndexDenseGo cs vs us is
     where
       go (SvS s tt ii) =
         let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-        in tSI (glb && l == 1 && tf == F) ('S',u,l,tf) $ SvS s (tt:.TreeIxR frst (min l u) tf) (ii:.:RiTirI u F)
+        in tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $ SvS s (tt:.TreeIxR frst (min l u) tf) (ii:.:RiTirI u F)
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j _)
     = flatten mk step . addIndexDenseGo cs vs us is
     where mk svS = return $ Just $ Left svS
@@ -259,12 +263,12 @@ instance
           --step _ | j > u = return $ Done
           step (Just (Left svS@(SvS s tt ii)))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                 tSI (glb) ('V',u,k,F) .
+                 tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
                    return $ Yield (SvS s (tt:.TreeIxR frst u F) (ii:.:RiTirI k tf)) (Just (Right svS))
           step (Just (Right (SvS s tt ii)))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      l         = rbdef u frst k
-                 tSI (glb && k == 0 && tf == F) ('W',u,k,l,T) .
+                 tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
                    return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l F)) Nothing
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
