@@ -212,7 +212,7 @@ instance
               let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
               in  {- traceShow ("-"::String,l,tf) $ -} TState s (ii:.:RiTirI l tf) (ee:.()) )
     . termStream ts cs us is
-    . staticCheck (ii == T)
+--    . staticCheck (ii == T)
   {-# Inline termStream #-}
 
 
@@ -256,9 +256,11 @@ instance
       go (SvS s tt ii) =
         let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
         in tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $ SvS s (tt:.TreeIxR frst (min l u) tf) (ii:.:RiTirI u F)
-  addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j _)
+  addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j jj)
     = flatten mk step . addIndexDenseGo cs vs us is
-    where mk svS = return $ Just $ Left svS
+    where mk svS
+            | jj == F = return $ Just $ Left svS
+            | jj == T = return $ Nothing
           step Nothing = return $ Done
           --step _ | j > u = return $ Done
           step (Just (Left svS@(SvS s tt ii)))
