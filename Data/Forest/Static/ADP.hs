@@ -266,8 +266,12 @@ instance
           step (Just (Left svS@(SvS s tt ii)))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                  tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst u F) (ii:.:RiTirI k tf)) (Just (Right svS))
-          step (Just (Right (SvS s tt ii)))
+                   return $ Yield (SvS s (tt:.TreeIxR frst u F) (ii:.:RiTirI k F)) (Just (Right (F,svS)))
+          step (Just (Right (F,svS@(SvS s tt ii))))
+            = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                 tSI (glb) ('W',u,k,T,'.',distance $ F.label frst VG.! 0) .
+                   return $ Yield (SvS s (tt:.TreeIxR frst k F) (ii:.:RiTirI u F)) (Just (Right (T,svS)))
+          step (Just (Right (T,SvS s tt ii)))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      l         = rbdef u frst k
                  tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
