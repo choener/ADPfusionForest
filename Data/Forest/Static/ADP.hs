@@ -280,7 +280,7 @@ instance
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
 
-glb = True
+glb = False
 
 tSI cond s i = if cond then traceShow s i else i
 

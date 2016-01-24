@@ -8,6 +8,7 @@ import Control.Monad(forM_)
 import Data.Vector.Fusion.Util
 import qualified Data.Tree as T
 import Debug.Trace
+import Data.List (nub)
 
 import ADP.Fusion
 import Data.PrimitiveArray as PA hiding (map)
@@ -43,15 +44,15 @@ makeAlgebraProduct ''SigGlobal
 score :: Monad m => SigGlobal m Int Int Info Info
 score = SigGlobal
   { done  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
-  , iter  = \ t f -> traceShow ("TFTFTFTFTF",t,f) $ t+f
-  , align = \ (Z:.a:.b) f -> traceShow ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -11
-  , indel = \ (Z:.():.b) f -> traceShow ("INDEL",f,b) $ f - 5
-  , delin = \ (Z:.a:.()) f -> traceShow ("DELIN",f,a) $ f - 3
+  , iter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t+f
+  , align = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -11
+  , indel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f - 5
+  , delin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f - 3
   , h     = SM.foldl' max (-88888)
   }
 {-# Inline score #-}
 
-
+type Pretty = [[(Info,Info)]]
 pretty :: Monad m => SigGlobal m [(Info,Info)] [[(Info,Info)]] Info Info
 pretty = SigGlobal
   { done  = \ (Z:.():.()) -> [] -- [(Info "" 0, Info "" 0)]
@@ -62,6 +63,18 @@ pretty = SigGlobal
   , h     = SM.toList
   }
 {-# Inline pretty #-}
+
+type Pretty' = [[T.Tree (Info,Info)]]
+pretty' :: Monad m => SigGlobal m [T.Tree (Info,Info)] [[T.Tree ((Info,Info))]] Info Info
+pretty' = SigGlobal
+  { done  = \ (Z:.():.()) -> []
+  , iter  = \ t f -> t++f
+  , align = \ (Z:.a:.b) f -> [T.Node (a,b) f]
+  , indel = \ (Z:.():.b) f -> [T.Node (Info "-" 0,b) f]
+  , delin = \ (Z:.a:.()) f -> [T.Node (a,Info "-" 0) f]
+  , h     = SM.toList
+  }
+{-# Inline pretty' #-}
 
 
 
@@ -79,10 +92,10 @@ runForward f1 f2 = mutateTablesDefault $
 
 
 
-run :: Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,Int,[[(Info,Info)]])
-run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
+run :: Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,Int,Pretty')
+run f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
   where fwd@(Z:.f:.t) = runForward f1 f2
-        Z:.fb:.tb = gGlobal (score <|| pretty) (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
+        Z:.fb:.tb = gGlobal (score <|| pretty') (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
                     (node $ F.label f1) (node $ F.label f2)
 
 
@@ -100,33 +113,35 @@ run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
 --
 --
 --
---         (a,a)                          100
---        /     \
---   (-,b)       (-,f)                    (-5) (-5)
---              /     \
---         (e,-)       (d,d)              (-3)  100
---        /     \
---   (b,-)       (c,c)                    (-3)  100
+--             (a,a)                          100
+--            /     \
+--       (e,-)       (d,-)                    (-3) (-3)
+--      /     \
+-- (b,b)       (-,f)                          100  (-5)
+--            /     \
+--       (c,c)       (-,d)                    100  (-5)
 
 test = do
---  let t1 = f "((b,c)e,d)a;"    -- '-3'
---      t2 = f "(b,(c,d)f)a;"
-  let t1 = f "(b:1,c:1)a:1;"
-      t2 = f "b:2;c:2;"
+  let t1 = f "((b,c)e,d)a;"    -- '-3'
+      t2 = f "(b,(c,d)f)a;"
+--  let t1 = f "(b:1,c:1)a:1;"
+--      t2 = f "b:2;c:2;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""
   print t2
   putStrLn ""
-  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt) = run t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt') = run t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
   mapM_ print $ assocs f
   print ""
   mapM_ print $ assocs t
   --print f
   --print t
+  let bt = take 10 $ nub bt'
+  print (length bt', length bt)
   forM_ bt $ \b -> do
     putStrLn ""
-    forM_ b $ \x -> print x
+    forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
   print sc
 
 
