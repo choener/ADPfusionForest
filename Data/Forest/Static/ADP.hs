@@ -258,24 +258,35 @@ instance
         in tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $ SvS s (tt:.TreeIxR frst (min l u) tf) (ii:.:RiTirI u F)
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j jj)
     = flatten mk step . addIndexDenseGo cs vs us is
-    where mk svS
-            | jj == F = return $ Just $ Left svS
-            | jj == T = return $ Nothing
+    where mk svS = return $ Just $ (jj, Left svS)
           step Nothing = return $ Done
-          --step _ | j > u = return $ Done
-          step (Just (Left svS@(SvS s tt ii)))
+          -- _ -> TF , for forests: with T having size ε, F having full size
+          step (Just (F, Left svS@(SvS s tt ii)))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                  tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst u F) (ii:.:RiTirI k F)) (Just (Right (F,svS)))
-          step (Just (Right (F,svS@(SvS s tt ii))))
+                   return $ Yield (SvS s (tt:.TreeIxR frst u F) (ii:.:RiTirI k F)) (Just (F, Right (F,svS)))
+          -- _ -> TF, for forests: with T having full size, F having size ε
+          step (Just (F, Right (F,svS@(SvS s tt ii))))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                  tSI (glb) ('W',u,k,T,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst k F) (ii:.:RiTirI u F)) (Just (Right (T,svS)))
-          step (Just (Right (T,SvS s tt ii)))
+                   return $ Yield (SvS s (tt:.TreeIxR frst k F) (ii:.:RiTirI u F)) (Just (F, Right (T,svS)))
+          -- _ -> TF for forests: with T having size 1, F having full - 1 size
+          step (Just (F, Right (T,SvS s tt ii)))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      l         = rbdef u frst k
                  tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
                    return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l F)) Nothing
+          -- _ -> TF , for trees: with T having size ε, F having size 1 (or T)
+          step (Just (T, Left svS@(SvS s tt ii)))
+            = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                 tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
+                   return $ Yield (SvS s (tt:.TreeIxR frst u F) (ii:.:RiTirI k T)) (Just (T, Right (T,svS)))
+          -- _ -> TF, for trees: with T having size 1, F having size ε
+          step (Just (T, Right (T,SvS s tt ii)))
+            = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                     l         = rbdef u frst k
+                 tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
+                   return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI u F)) Nothing
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
