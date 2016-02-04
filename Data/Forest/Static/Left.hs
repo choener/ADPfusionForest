@@ -42,7 +42,7 @@ instance Index (TreeIxL p v a t) where
   -- | trees @T@ are stored in the first line, i.e. @+0@, forests @F@ (with
   -- @j==u@ are stored in the second line, i.e. @+u+1@ to each index.
   linearIndex _ (TreeIxL _ l u) (TreeIxL _ i j)
-    = 0 --linearIndex (subword 0 0) (subword l u) (subword i j)
+    = linearIndex (subword 0 0) (subword l u) (subword i j)
   {-# Inline linearIndex #-}
   smallestLinearIndex _ = error "still needed?"
   {-# Inline smallestLinearIndex #-}
@@ -56,7 +56,7 @@ instance Index (TreeIxL p v a t) where
 
 instance IndexStream z => IndexStream (z:.TreeIxL p v a I) where
   streamUp   (ls:.TreeIxL p lf _) (hs:.TreeIxL _ _ ht) = flatten (streamUpMk   ht) (streamUpStep   p lf ht) $ streamUp ls hs
-  streamDown (ls:.TreeIxL p lf _) (hs:.TreeIxL _ _ ht) = flatten (streamDownMk lf) (streamDownStep p lf ht) $ streamDown ls hs
+  streamDown (ls:.TreeIxL p lf _) (hs:.TreeIxL _ _ ht) = flatten (streamDownMk lf ht) (streamDownStep p lf ht) $ streamDown ls hs
   {-# Inline streamUp #-}
   {-# Inline streamDown #-}
 
@@ -69,7 +69,7 @@ streamUpStep p lf ht (z,i,j)
   | otherwise = return $ SM.Yield (z:.TreeIxL p i j) (z,i,j+1)
 {-# Inline [0] streamUpStep #-}
 
-streamDownMk lf z = return (z,lf,lf)
+streamDownMk lf ht z = return (z,lf,ht)
 {-# Inline [0] streamDownMk #-}
 
 streamDownStep p lf ht (z,i,j)
@@ -104,11 +104,11 @@ instance
   ( TstCtx m ts s x0 i0 is (TreeIxL p v a I)
   ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxL p v a I) where
   termStream (ts:|Node f xs) (cs:.IStatic ()) (us:.TreeIxL _ l u) (is:.TreeIxL frst i j)
-    = map (\(TState s ii ee) -> TState s (ii:.:RiTilI i (j-1)) (ee:.f xs j) )
+    = map (\(TState s ii ee) -> traceShow ('n',i,j) $ TState s (ii:.:RiTilI i (j-1)) (ee:.f xs (j-1)) )
     . termStream ts cs us is
     . staticCheck (i<j)
   termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxL _ l u) (is:.TreeIxL frst i j)
-    = map (\(TState s ii ee) -> TState s (ii:.:RiTilI (i+1) j) (ee:.f xs i) )
+    = map (\(TState s ii ee) -> traceShow ('m',i,j) $ TState s (ii:.:RiTilI i (i+1)) (ee:.f xs i) )
     . termStream ts cs us is
     . staticCheck (i<j)
   {-# Inline termStream #-}
@@ -116,7 +116,7 @@ instance
 
 instance TermStaticVar (Node r x) (TreeIxL p v a I) where
   termStaticVar _ sv _ = sv
-  termStreamIndex _ _ (TreeIxL frst i j) = TreeIxL frst i j
+  termStreamIndex _ _ (TreeIxL frst i j) = TreeIxL frst i $ j-1
   {-# Inline [0] termStaticVar   #-}
   {-# Inline [0] termStreamIndex #-}
 
@@ -229,7 +229,7 @@ instance
         mk s = 
           let ss = if ps == -1 then roots frst else (children frst) VG.! ps
               ps = parent frst VG.! i
-              rm = traceShow (i,j) $ if i==j then u else u --VG.last $ VG.filter (<=j) ss
+              rm = traceShow ('r',i,j) $ if i==j then j else VG.last $ VG.filter (<j) ss
           in return (s,rm)
         step ((SvS s tt ii),k)
           | k==j = return $ Done
