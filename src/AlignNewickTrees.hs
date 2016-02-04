@@ -18,7 +18,7 @@ import qualified Data.Forest.Static as F
 import Biobase.Newick
 
 import Data.Forest.Static.ADP
-
+import Data.Forest.Static.Node
 
 [formalLanguage|
 Verbose

@@ -29,7 +29,7 @@ instance Show (TreeIxL p v a t) where
   show (TreeIxL _ i j) = show (i,j)
 
 minIx, maxIx :: Forest p v a -> TreeIxL p v a t
-minIx f = TreeIxL f 0 0
+minIx f = TreeIxL f 0 (VU.length (parent f))
 
 maxIx f = TreeIxL f 0 (VU.length (parent f))
 {-# Inline minIx #-}
@@ -42,21 +42,21 @@ instance Index (TreeIxL p v a t) where
   -- | trees @T@ are stored in the first line, i.e. @+0@, forests @F@ (with
   -- @j==u@ are stored in the second line, i.e. @+u+1@ to each index.
   linearIndex _ (TreeIxL _ l u) (TreeIxL _ i j)
-    = linearIndex (subword 0 0) (subword l u) (subword i j)
+    = 0 --linearIndex (subword 0 0) (subword l u) (subword i j)
   {-# Inline linearIndex #-}
   smallestLinearIndex _ = error "still needed?"
   {-# Inline smallestLinearIndex #-}
-  largestLinearIndex (TreeIxL _ _ u) = upperTri u - 1
+  largestLinearIndex (TreeIxL _ _ u) = (triangularNumber $ u-0+1) - 1
   {-# Inline largestLinearIndex #-}
-  size _ (TreeIxL _ _ u) = upperTri u
+  size _ (TreeIxL _ _ u) = triangularNumber $ u-0+1
   {-# Inline size #-}
   inBounds _ (TreeIxL _ _ u) (TreeIxL _ i j) = 0 <= i && i <= j && j <= u
   {-# Inline inBounds #-}
 
 
 instance IndexStream z => IndexStream (z:.TreeIxL p v a I) where
-  streamUp   (ls:.TreeIxL p lf _) (hs:.TreeIxL _ ht _) = flatten (streamUpMk   ht) (streamUpStep   p lf ht) $ streamUp ls hs
-  streamDown (ls:.TreeIxL p lf _) (hs:.TreeIxL _ ht _) = flatten (streamDownMk lf) (streamDownStep p lf ht) $ streamDown ls hs
+  streamUp   (ls:.TreeIxL p lf _) (hs:.TreeIxL _ _ ht) = flatten (streamUpMk   ht) (streamUpStep   p lf ht) $ streamUp ls hs
+  streamDown (ls:.TreeIxL p lf _) (hs:.TreeIxL _ _ ht) = flatten (streamDownMk lf) (streamDownStep p lf ht) $ streamDown ls hs
   {-# Inline streamUp #-}
   {-# Inline streamDown #-}
 
@@ -136,7 +136,7 @@ instance
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxL p v a I)
   ) => TermStream m (TermSymbol ts Epsilon) s (is:.TreeIxL p v a I) where
-  termStream (ts:|Epsilon) (cs:.IStatic ()) (us:.TreeIxR _ l u) (is:.TreeIxL frst i j)
+  termStream (ts:|Epsilon) (cs:.IStatic ()) (us:.TreeIxL _ l u) (is:.TreeIxL frst i j)
     = map (\(TState s ii ee) -> TState s (ii:.:RiTilI i j) (ee:.()) )
     . termStream ts cs us is
     . staticCheck (i==j)
@@ -166,9 +166,9 @@ instance
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxL p v a I)
   ) => TermStream m (TermSymbol ts Deletion) s (is:.TreeIxL p v a I) where
-  termStream (ts:|Deletion) (cs:.IVariable ()) (us:.u) (is:.TreeIxL frst i j)
+  termStream (ts:|Deletion) (cs:.IStatic ()) (us:.u) (is:.TreeIxL frst i j)
     = map (\(TState s ii ee) ->
-              let RiTilI k l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+              let RiTilI k l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL p v a I))
               in  {- traceShow ("-"::String,l,tf) $ -} TState s (ii:.:RiTilI k l) (ee:.()) )
     . termStream ts cs us is
 --    . staticCheck (ii == T)
@@ -226,11 +226,23 @@ instance
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxL frst l u) (is:.TreeIxL _ i j)
     = flatten mk step . addIndexDenseGo cs vs us is
       where
-        mk s = let
-  -- ss = if parent i == -1 then roots else children(parent)
-  -- rm = last $ filter (<=j) ss
+        mk s = 
+          let ss = if ps == -1 then roots frst else (children frst) VG.! ps
+              ps = parent frst VG.! i
+              rm = traceShow (i,j) $ if i==j then u else u --VG.last $ VG.filter (<=j) ss
+          in return (s,rm)
+        step ((SvS s tt ii),k)
+          | k==j = return $ Done
+          | otherwise = return $ Yield (SvS s (tt:.TreeIxL frst i k) (ii:.:RiTilI i k)) ((SvS s tt ii),j)
+        {-# Inline [0] mk #-}
+        {-# Inline [0] step #-}
+  {-# Inline addIndexDenseGo #-}
 
 
-
+instance (MinSize c) => TableStaticVar u c (TreeIxL p v a I) where 
+  tableStaticVar _ _ _ _ = IVariable ()
+  tableStreamIndex _ c _ = id
+  {-# Inline [0] tableStaticVar #-}
+  {-# Inline [0] tableStreamIndex #-}
 
 
