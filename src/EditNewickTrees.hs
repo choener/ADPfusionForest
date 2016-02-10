@@ -26,7 +26,6 @@ Verbose
 Grammar: Global
 N: T
 N: F
-T: n
 T: x
 S: [F,F]
 [F,F] -> iter   <<< [F,F] [T,T]
@@ -34,7 +33,7 @@ S: [F,F]
 --[F,F] -> findel <<< [-,x] [F,F]
 [F,F] -> delin  <<< [F,F] [x,-]
 --[F,F] -> delfin <<< [x,-] [F,F]
-[T,T] -> align  <<< [n,n] [F,F]
+[T,T] -> align  <<< [F,F] [x,x]
 [F,F] -> done   <<< [e,e]
 -- how to delete roots? does this grammar work? 
 -- example trees: 
@@ -52,9 +51,9 @@ makeAlgebraProduct ''SigGlobal
 
 
 
-score :: Monad m => SigGlobal m Int Int Info Info Info Info
+score :: Monad m => SigGlobal m Int Int Info Info
 score = SigGlobal
-  { align = \( Z:.n0:.n1) f -> f + if label n0 == label n1 then 100 else -1111
+  { align = \ f ( Z:.n0:.n1) -> f + if label n0 == label n1 then 100 else -1111
   , done = \(Z:.():.()) -> 0
   , iter = \ f t -> f+t
   , indel = \ f (Z:.():.n1) -> f - 3
@@ -87,11 +86,11 @@ pretty = SigGlobal
 -}
 
 type Pretty' = [[T.Tree (Info,Info)]]
-pretty' :: Monad m => SigGlobal m [T.Tree (Info,Info)] [[T.Tree ((Info,Info))]] Info Info Info Info
+pretty' :: Monad m => SigGlobal m [T.Tree (Info,Info)] [[T.Tree ((Info,Info))]] Info Info
 pretty' = SigGlobal
   { done  = \ (Z:.():.()) -> []
   , iter  = \ f t -> f++t
-  , align = \ (Z:.a:.b) f -> [T.Node (a,b) f]
+  , align = \ f (Z:.a:.b) -> [T.Node (a,b) f]
   , indel = \ f (Z:.():.b) -> f --[T.Node (Info "-" 0,b) f]
   , delin = \ f (Z:.a:.()) -> f --[T.Node (a,Info "-" 0) f]
   , h     = SM.toList
@@ -100,9 +99,9 @@ pretty' = SigGlobal
 
 
 
-type Trix = TreeIxL Pre V.Vector Info I
+type Trix = TreeIxL Post V.Vector Info I
 type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
-type Frst = Forest Pre V.Vector Info
+type Frst = Forest Post V.Vector Info
 
 runForward :: Frst -> Frst -> Z:.Tbl Int:.Tbl Int
 runForward f1 f2 = mutateTablesDefault $
@@ -111,8 +110,8 @@ runForward f1 f2 = mutateTablesDefault $
                    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                    (node $ F.label f1)
                    (node $ F.label f2)
-                   (node $ F.label f1)
-                   (node $ F.label f2)
+  --                 (node $ F.label f1)
+  --                 (node $ F.label f2)
 
 
 
@@ -121,21 +120,23 @@ run f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
   where fwd@(Z:.f:.t) = runForward f1 f2
         Z:.fb:.tb = gGlobal (score <|| pretty') (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
                     (node $ F.label f1) (node $ F.label f2)
-                    (node $ F.label f1) (node $ F.label f2)
+--                    (node $ F.label f1) (node $ F.label f2)
 
 
 
 test = do
-  let t2 = f "c;" --"(a,(b)c)d;"--"((b,c)e,d)a;"
-      t1 = f "c;" --"((a,b)d)c;"--"(b,(c,d)f)a;"
+  let t2 = f "(b)c;" --"(a,(b)c)d;"--"((b,c)e,d)a;"
+      t1 = f "(b)c;" --"((a,b)d)c;"--"(b,(c,d)f)a;"
 --  let t1 = f "d;(b)e;" -- (b,c)e;"    -- '-3'
 --      t2 = f "(d)f;b;" -- b;"
 --  let t1 = f "(b:1,c:1)a:1;"
 --      t2 = f "b:2;c:2;"
-      f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x  -- editing needs postorder
+      f x = either error (F.forestPost . map getNewickTree) $ newicksFromText x  -- editing needs postorder
   print t1
+  print $ F.leftMostChildren t1
   putStrLn ""
   print t2
+  print $ F.leftMostChildren t2
   putStrLn ""
   let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt') = run t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
   mapM_ print $ assocs f
