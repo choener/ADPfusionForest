@@ -29,9 +29,9 @@ instance Show (TreeIxL p v a t) where
   show (TreeIxL _ _ i j) = show (i,j)
 
 minIx, maxIx :: Forest p v a -> TreeIxL p v a t
-minIx f = TreeIxL f (leftMostChildren f) 0 (VU.length (parent f))
+minIx f = TreeIxL f (leftMostLeaves f) 0 (VU.length (parent f))
 
-maxIx f = TreeIxL f (leftMostChildren f) 0 (VU.length (parent f))
+maxIx f = TreeIxL f (leftMostLeaves f) 0 (VU.length (parent f))
 {-# Inline minIx #-}
 {-# Inline maxIx #-}
 

@@ -9,6 +9,7 @@ import Data.Vector.Fusion.Util
 import qualified Data.Tree as T
 import Debug.Trace
 import Data.List (nub)
+import Data.Text (Text)
 
 import ADP.Fusion
 import Data.PrimitiveArray as PA hiding (map)
@@ -125,18 +126,21 @@ run f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
 
 
 test = do
-  let t2 = f "(b)c;" --"(a,(b)c)d;"--"((b,c)e,d)a;"
-      t1 = f "(b)c;" --"((a,b)d)c;"--"(b,(c,d)f)a;"
+--  let t1 = f "((a)b)c;" --"(a,(b)c)d;"--"((b,c)e,d)a;"
+--      t2 = f "(a,b)c;" --"((a,b)d)c;"--"(b,(c,d)f)a;"
 --  let t1 = f "d;(b)e;" -- (b,c)e;"    -- '-3'
 --      t2 = f "(d)f;b;" -- b;"
 --  let t1 = f "(b:1,c:1)a:1;"
 --      t2 = f "b:2;c:2;"
+  let t1 = f "((a,(b)c)d,e)f;"
+      t2 = f "(((a,b)d)c,e)f;"
+      f :: Text -> F.Forest Post V.Vector Info
       f x = either error (F.forestPost . map getNewickTree) $ newicksFromText x  -- editing needs postorder
   print t1
-  print $ F.leftMostChildren t1
+  print $ F.leftMostLeaves t1
   putStrLn ""
   print t2
-  print $ F.leftMostChildren t2
+  print $ F.leftMostLeaves t2
   putStrLn ""
   let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt') = run t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
   mapM_ print $ assocs f
