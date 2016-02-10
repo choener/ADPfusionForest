@@ -2,25 +2,25 @@ resolver: lts-5.1
 
 packages:
 - '.'
-- location:
-    git: guldendraak.bioinf.uni-leipzig.de:/homes/brauerei2/choener/Repository/Lib-BiobaseNewick
-    commit: 189a3ab7d45c119ffc1f9eba5fab2651db73b1ea
+- location: ../Lib-BiobaseNewick/
+    #git: ../Lib-BiobaseNewick/
+    #commit: 189a3ab7d45c119ffc1f9eba5fab2651db73b1ea
   extra-dep: true
-- location:
-    git: guldendraak.bioinf.uni-leipzig.de:/homes/brauerei2/choener/Repository/Lib-ForestStructures
-    commit: a6051ecbd8cd391adce693bf6e35d5837094128c
+- location: ../Lib-ForestStructures/
+    #git: ../Lib-ForestStructures/
+    #commit: a6051ecbd8cd391adce693bf6e35d5837094128c
   extra-dep: true
-- location:
-    git: guldendraak.bioinf.uni-leipzig.de:/homes/brauerei2/choener/Repository/Lib-ADPfusion
-    commit: 21777e0143ec2a8d17217973793074589c88483d
+- location: ../Lib-ADPfusion/
+    #git: ../Lib-ADPfusion/
+    #commit: 21777e0143ec2a8d17217973793074589c88483d
   extra-dep: true
-- location:
-    git: guldendraak.bioinf.uni-leipzig.de:/homes/brauerei2/choener/Repository/Lib-FormalGrammars
-    commit: 7468842cf505fc2803b77e9f769e4e2803d7127d
+- location: ../Lib-FormalGrammars/
+    #git: ../Lib-FormalGrammars/
+    #commit: 7468842cf505fc2803b77e9f769e4e2803d7127d
   extra-dep: true
-- location:
-    git: guldendraak.bioinf.uni-leipzig.de:/homes/brauerei2/choener/Repository/Lib-PrimitiveArray
-    commit: abbd079536772b0abf84ab4ac25d692184a5c1d4
+- location: ../Lib-PrimitiveArray/
+    #git: ../Lib-PrimitiveArray/
+    #commit: abbd079536772b0abf84ab4ac25d692184a5c1d4
   extra-dep: true
 
 extra-deps:
