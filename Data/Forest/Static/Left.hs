@@ -104,7 +104,7 @@ instance
   ( TstCtx m ts s x0 i0 is (TreeIxL p v a I)
   ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxL p v a I) where
   termStream (ts:|Node f xs) (cs:.IStatic ()) (us:.TreeIxL _ _ l u) (is:.TreeIxL frst _ i j)
-    = map (\(TState s ii ee) -> traceShow ('n',i,j) $ TState s (ii:.:RiTilI (j-1) j) (ee:.f xs (j-1)) )
+    = map (\(TState s ii ee) -> {-traceShow ('n',i,j) $-} TState s (ii:.:RiTilI (j-1) j) (ee:.f xs (j-1)) )
     . termStream ts cs us is
     . staticCheck (i<j)
 --  termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxL _ _ l u) (is:.TreeIxL frst _ i j)
