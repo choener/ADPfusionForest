@@ -62,25 +62,25 @@ Emit: Global
 
 makeAlgebraProduct ''SigGlobal
 
-score :: Monad m => SigGlobal m Int Int Info Info
-score = SigGlobal
+score :: Monad m => Int -> Int -> Int -> SigGlobal m Int Int Info Info
+score m a d = SigGlobal -- match affine deletion 
   { done  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
   , iter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t+f
-  , align = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -11
-  , indel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f - 5
-  , delin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f - 3
+  , align = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f + if label a == label b then m else -m
+  , indel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f - d
+  , delin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f - d
   , fpalign = \ t f -> t + f
   , pfalign = \ t f -> t + f
   , gpalign = \ t f -> t + f
   , pgalign = \ t f -> t + f
-  , fpdelin = \ t f -> t + f
-  , pfdelin = \ t f -> t + f
-  , pgdelin = \ t f -> t + f
-  , gpdelin = \ t f -> t + f
-  , fpindel = \ t f -> t + f
-  , pfindel = \ t f -> t + f
-  , pgindel = \ t f -> t + f
-  , gpindel = \ t f -> t + f
+  , fpdelin = \ t f -> a + t + f
+  , pfdelin = \ t f -> a + t + f
+  , pgdelin = \ t f -> a + t + f
+  , gpdelin = \ t f -> a + t + f
+  , fpindel = \ t f -> a + t + f
+  , pfindel = \ t f -> a + t + f
+  , pgindel = \ t f -> a + t + f
+  , gpindel = \ t f -> a + t + f
   , h     = SM.foldl' max (-88888)
   }
 {-# Inline score #-}
@@ -116,27 +116,29 @@ type Trix = TreeIxR Pre V.Vector Info I
 type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
 type Frst = Forest Pre V.Vector Info
 
-runForward :: Frst -> Frst -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int
-runForward f1 f2 = mutateTablesDefault $
-                   gGlobal score
-                   (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (node $ F.label f1)
-                   (node $ F.label f2)
+runForward :: Frst -> Frst -> Int -> Int -> Int -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int
+runForward f1 f2 m a d = let costs = score m a d
+                         in
+                           mutateTablesDefault $
+                           gGlobal costs
+                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                           (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                           (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                           (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                           (node $ F.label f1)
+                           (node $ F.label f2)
 
 
 
-run :: Frst -> Frst -> (Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int,Int,Pretty')
-run f1 f2 = (fwd,unId $ axiom a1, unId $ axiom b1)
-  where fwd@(Z:.a1:.a2:.a3:.a4:.a5:.a6:.a7:.a8) = runForward f1 f2
+run :: Frst -> Frst -> Int -> Int -> Int -> (Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int,Int,Pretty')
+run f1 f2 m a d = (fwd,unId $ axiom a1, unId $ axiom b1)
+  where fwd@(Z:.a1:.a2:.a3:.a4:.a5:.a6:.a7:.a8) = runForward f1 f2 m a d
         Z:.b1:.b2:.b3:.b4:.b5:.b6:.b7:.b8 
-                    = gGlobal (score <|| pretty') 
+                    = gGlobal ((score m a d) <|| pretty') 
                     (toBacktrack a1 (undefined :: Id a -> Id a)) 
                     (toBacktrack a2 (undefined :: Id a -> Id a))  
                     (toBacktrack a3 (undefined :: Id a -> Id a))  
@@ -170,9 +172,9 @@ run f1 f2 = (fwd,unId $ axiom a1, unId $ axiom b1)
 --            /     \
 --       (c,c)       (-,d)                    100  (-5)
 
-testalign = do
-  let t1 = f "((d,e,f)b,(z)c)a;"  --"((b,c)e,d)a;"
-      t2 = f "(((d,e)y,f)b,(c,(x)i)g)a;"  --"(b,(c,d)f)a;"
+testalign m a d = do
+  let t1 = f "(b)a;" --"((d,e,f)b,(z)c)a;"  --"((b,c)e,d)a;"
+      t2 = f "a;" --"(((d,e)y,f)b,(c,(x)i)g)a;"  --"(b,(c,d)f)a;"
 --  let t1 = f "d;(b)e;" -- (b,c)e;"    -- '-3'
 --      t2 = f "(d)f;b;" -- b;"
 --  let t1 = f "(b:1,c:1)a:1;"
@@ -182,7 +184,7 @@ testalign = do
   putStrLn ""
   print t2
   putStrLn ""
-  let (_,sc,bt') = run t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (_,sc,bt') = run t1 t2 m a d -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
  -- mapM_ print $ assocs f
   print ""
  -- mapM_ print $ assocs t
