@@ -18,7 +18,7 @@ import Data.Forest.Static (TreeOrder(..),Forest)
 import qualified Data.Forest.Static as F
 import Biobase.Newick
 
-import Data.Forest.Static.Left
+import Data.Forest.Static.Left -- Sparse
 import Data.Forest.Static.Node
 
 [formalLanguage|
@@ -120,28 +120,34 @@ run f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
 
 
 testedit = do
---  let t1 = f "((a)b)c;" --"(a,(b)c)d;"--"((b,c)e,d)a;"
---      t2 = f "(a,b)c;" --"((a,b)d)c;"--"(b,(c,d)f)a;"
+  let t1 = f "((a)b)c;" --"(a,(b)c)d;"--"((b,c)e,d)a;"
+      t2 = f "(a,b)c;" --"((a,b)d)c;"--"(b,(c,d)f)a;"
 --  let t1 = f "d;(b)e;" -- (b,c)e;"    -- '-3'
 --      t2 = f "(d)f;b;" -- b;"
 --  let t1 = f "(b:1,c:1)a:1;"
 --      t2 = f "b:2;c:2;"
-  let t1 = f "((d,e,f)b,(z)c)a;" --"((a,b)y,c)z;" --"((d,e,i)b,c)a;" --"((a,(b)c)d,e)f;"
-      t2 = f "(((d,e)y,f)b,((x)c,i)g)a;" --"(a,b,c)z;" --"((d,e)b,(f)h,(c,i)g)a;" --"(((a,b)d)c,e)f;"
+--  let t1 = f "((d,e,f)b,(z)c)a;" --"((a,b)y,c)z;" --"((d,e,i)b,c)a;" --"((a,(b)c)d,e)f;"
+--      t2 = f "(((d,e)y,f)b,((x)c,i)g)a;" --"(a,b,c)z;" --"((d,e)b,(f)h,(c,i)g)a;" --"(((a,b)d)c,e)f;"
+--  let t1 = f "((a,(b)c)d,e)f;"
+--      t2 = f "(((a,b)d)c,e)f;"
       f :: Text -> F.Forest Post V.Vector Info
       f x = either error (F.forestPost . map getNewickTree) $ newicksFromText x  -- editing needs postorder
   print t1
   print $ F.leftMostLeaves t1
+  print $ F.leftKeyRoots t1
   putStrLn ""
   print t2
   print $ F.leftMostLeaves t2
+  print $ F.leftKeyRoots t2
   putStrLn ""
   let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt') = run t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
---  mapM_ print $ assocs f
+  mapM_ print $ assocs f
   print ""
---  mapM_ print $ assocs t
+  mapM_ print $ assocs t
   --print f
   --print t
+  print $ F.leftKeyRoots t1
+  print $ F.leftKeyRoots t2
   let bt = take 10 $ nub bt'
   print (length bt', length bt)
   forM_ bt $ \b -> do
