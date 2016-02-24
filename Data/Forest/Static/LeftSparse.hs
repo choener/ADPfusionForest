@@ -56,26 +56,37 @@ instance Index (TreeIxL p v a t) where
 
 instance IndexStream z => IndexStream (z:.TreeIxL Post v a I) where
   streamUp   (ls:.TreeIxL p c lf _) (hs:.TreeIxL _ _ _ ht)
-    = flatten (streamUpMk lf  ht) (streamUpStep  p c lkr lf ht) $ streamUp ls hs
+    = flatten (streamUpMk lf ht p c lkr) (streamUpStep  p c lkr lf ht) $ streamUp ls hs
     where lkr = leftKeyRoots p
   streamDown (ls:.TreeIxL p c lf _) (hs:.TreeIxL _ _ _ ht)
-    = flatten (streamDownMk lf ht) (streamDownStep p c lf ht) $ streamDown ls hs
+    = flatten (streamDownMk lf ht p c lkr) (streamDownStep p c lf ht) $ streamDown ls hs
     where lkr = leftKeyRoots p
   {-# Inline streamUp #-}
   {-# Inline streamDown #-}
 
-streamUpMk l h z = return (z,0,0)  -- start with size 0 and smallest element 0
+streamUpMk l h p c lkr z = return $ Left (z,0,VG.length c)
 {-# Inline [0] streamUpMk #-}
 
-streamUpStep p c lkr lf ht (z,s,k)  -- s=size, k=index into left key roots -- i=left border
-  | s > VG.length c     = return $ SM.Done
-  | k >= VG.length lkr  = return $ SM.Skip (z,s+1,0)
-  | i + s > VG.length c = return $ SM.Skip (z,s+1,0)
-  | otherwise = return $ SM.Yield (z:.TreeIxL p c i (i+s)) (z,s,k+1)
-  where i = lkr VG.! k
+-- |
+
+streamUpStep p c lkr lf ht (Left (z,s,i))
+  | VG.null lkr = return $ SM.Done
+  -- all the @[i,i)@ and @[i,i+1)@ cases
+  | s >  1      = return $ SM.Skip (Right (z,0,Nothing))
+  | i >= 0      = return $ SM.Yield (z:.TreeIxL p c i (i+s)) (Left (z,s,i-1))
+  | i <  0      = return $ SM.Skip  (Left (z,s+1,VG.length c - (s+1)))
+streamUpStep p c lkr lf ht (Right (z,k,Nothing))
+  | k >= VG.length lkr = return $ SM.Done
+  | otherwise          = return $ SM.Skip (Right (z,k,Just (lkr VG.! k)))
+streamUpStep p c lkr lf ht (Right (z,k,Just i))
+  | i < ll             = return $ SM.Skip (Right (z,k+1,Nothing))
+  | otherwise          = return $ SM.Yield (z:.TreeIxL p c i j) (Right (z,k,Just (i-1)))
+  where j' = lkr VG.! k
+        j  = j'+1
+        ll = c VG.! j'
 {-# Inline [0] streamUpStep #-}
 
-streamDownMk lf ht z = return (z,ht,0)
+streamDownMk lf ht p c lkr z = return (z,ht,0)
 {-# Inline [0] streamDownMk #-}
 
 streamDownStep p c lf ht (z,s,i)
