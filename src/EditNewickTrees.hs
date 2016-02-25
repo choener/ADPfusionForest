@@ -18,7 +18,7 @@ import Data.Forest.Static (TreeOrder(..),Forest)
 import qualified Data.Forest.Static as F
 import Biobase.Newick
 
-import Data.Forest.Static.Left -- Sparse
+import Data.Forest.Static.Left --Sparse
 import Data.Forest.Static.Node
 
 [formalLanguage|
@@ -120,6 +120,11 @@ run f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
 
 
 testedit = do
+  -- c        c
+  -- |       / \
+  -- b      a   b
+  -- |
+  -- a
   let t1 = f "((a)b)c;" --"(a,(b)c)d;"--"((b,c)e,d)a;"
       t2 = f "(a,b)c;" --"((a,b)d)c;"--"(b,(c,d)f)a;"
 --  let t1 = f "d;(b)e;" -- (b,c)e;"    -- '-3'
