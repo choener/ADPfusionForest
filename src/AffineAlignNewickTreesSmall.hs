@@ -27,34 +27,21 @@ Grammar: Global
 N: T -- tree
 N: F -- forest
 N: Z -- tree for gaps
-N: P -- parent gap mode
-N: G -- sibling gap together with P
+N: R -- parent gap mode
+-- N: G -- sibling gap together with P
 T: n
 S: [F,F]
 [F,F] -> iter    <<< [T,T] [F,F]
 [F,F] -> iter    <<< [T,Z] [F,F]
 [F,F] -> iter    <<< [Z,T] [F,F]
-[Z,T] -> indel   <<< [-,n] [P,F]
-[T,Z] -> delin   <<< [n,-] [F,P]
+[Z,T] -> indel   <<< [-,n] [R,R]
+[T,Z] -> delin   <<< [n,-] [R,R]
 [T,T] -> align   <<< [n,n] [F,F]
 [F,F] -> done    <<< [e,e]
-[F,P] -> done    <<< [e,e]
-[F,P] -> fpalign <<< [T,T] [F,P]
-[F,P] -> fpdelin <<< [T,Z] [F,P]
-[F,P] -> fpindel <<< [Z,T] [G,P]
-[P,F] -> done    <<< [e,e]
-[P,F] -> pfalign <<< [T,T] [P,F]
-[P,F] -> pfdelin <<< [T,Z] [P,G]
-[P,F] -> pfindel <<< [Z,T] [P,F]
-[G,P] -> gpalign <<< [T,T] [F,P]
-[G,P] -> gpdelin <<< [T,Z] [F,P]
-[G,P] -> gpindel <<< [Z,T] [G,P]
-[P,G] -> pgalign <<< [T,T] [P,F]
-[P,G] -> pgdelin <<< [T,Z] [P,G]
-[P,G] -> pgindel <<< [Z,T] [P,F]
-
-
---[T,T] -> done  <<< [e,e]   --align (sub)tree with empty (sub)tree
+[R,R] -> done    <<< [e,e]
+[R,R] -> gapiter <<< [T,T] [R,R]
+[R,R] -> gapiter <<< [T,Z] [R,R]
+[R,R] -> gapiter <<< [Z,T] [R,R]
 //
 
 Emit: Global
@@ -69,18 +56,7 @@ score m a d = SigGlobal -- match affine deletion
   , align = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f + if label a == label b then m else -m
   , indel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f - d
   , delin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f - d
-  , fpalign = \ t f -> t + f
-  , pfalign = \ t f -> t + f
-  , gpalign = \ t f -> t + f
-  , pgalign = \ t f -> t + f
-  , fpdelin = \ t f -> a + t + f
-  , pfdelin = \ t f -> a + t + f
-  , pgdelin = \ t f -> a + t + f
-  , gpdelin = \ t f -> a + t + f
-  , fpindel = \ t f -> a + t + f
-  , pfindel = \ t f -> a + t + f
-  , pgindel = \ t f -> a + t + f
-  , gpindel = \ t f -> a + t + f
+  , gapiter = \ t f -> a + t + f
   , h     = SM.foldl' max (-88888)
   }
 {-# Inline score #-}
@@ -94,18 +70,7 @@ pretty' = SigGlobal
   , align = \ (Z:.a:.b) f -> [T.Node (a,b) f]
   , indel = \ (Z:.():.b) f -> [T.Node (Info "-" 0,b) f]
   , delin = \ (Z:.a:.()) f -> [T.Node (a,Info "-" 0) f]
-  , fpalign = \ t f -> t ++ f
-  , pfalign = \ t f -> t ++ f
-  , gpalign = \ t f -> t ++ f
-  , pgalign = \ t f -> t ++ f
-  , fpdelin = \ t f -> t ++ f
-  , pfdelin = \ t f -> t ++ f
-  , pgdelin = \ t f -> t ++ f
-  , gpdelin = \ t f -> t ++ f
-  , fpindel = \ t f -> t ++ f
-  , pfindel = \ t f -> t ++ f
-  , pgindel = \ t f -> t ++ f
-  , gpindel = \ t f -> t ++ f
+  , gapiter = \ t f -> t ++ f
   , h     = SM.toList
   }
 {-# Inline pretty' #-}
@@ -116,14 +81,11 @@ type Trix = TreeIxR Pre V.Vector Info I
 type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
 type Frst = Forest Pre V.Vector Info
 
-runForward :: Frst -> Frst -> Int -> Int -> Int -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int
+runForward :: Frst -> Frst -> Int -> Int -> Int -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int
 runForward f1 f2 m a d = let
                          in
                            mutateTablesDefault $
                            gGlobal (score m a d) -- costs
-                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
@@ -134,19 +96,16 @@ runForward f1 f2 m a d = let
 
 
 
-run :: Frst -> Frst -> Int -> Int -> Int -> (Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int,Int,Pretty')
+run :: Frst -> Frst -> Int -> Int -> Int -> (Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int,Int,Pretty')
 run f1 f2 m a d = (fwd,unId $ axiom a1, unId $ axiom b1)
-  where fwd@(Z:.a1:.a2:.a3:.a4:.a5:.a6:.a7:.a8) = runForward f1 f2 m a d
-        Z:.b1:.b2:.b3:.b4:.b5:.b6:.b7:.b8 
+  where fwd@(Z:.a1:.a2:.a3:.a4:.a5) = runForward f1 f2 m a d
+        Z:.b1:.b2:.b3:.b4:.b5 
                     = gGlobal ((score m a d) <|| pretty') 
                     (toBacktrack a1 (undefined :: Id a -> Id a)) 
                     (toBacktrack a2 (undefined :: Id a -> Id a))  
                     (toBacktrack a3 (undefined :: Id a -> Id a))  
                     (toBacktrack a4 (undefined :: Id a -> Id a))  
                     (toBacktrack a5 (undefined :: Id a -> Id a))  
-                    (toBacktrack a6 (undefined :: Id a -> Id a))  
-                    (toBacktrack a7 (undefined :: Id a -> Id a))  
-                    (toBacktrack a8 (undefined :: Id a -> Id a))  
                     (node $ F.label f1) (node $ F.label f2)
 
 
