@@ -289,3 +289,47 @@ trright frst k = rbdef (VG.length $ rsib frst) frst k
 rbdef d frst k = maybe d (\z -> if z<0 then d else z) $ rsib frst VG.!? k
 {-# Inline rbdef #-}
 
+
+
+-- * Outside instances
+
+data instance RunningIndex (TreeIxR p v a O) = RiTirO !Int !TF
+
+-- | Outside works in the opposite direction.
+--
+-- TODO check if the original @Up@ / @Down@ combination is ok.
+
+instance IndexStream z => IndexStream (z:.TreeIxR p v a O) where
+  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk ht) (streamDownStep p lf ht) $ streamUp ls hs
+  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamUpMk   lf) (streamUpStep   p lf ht) $ streamDown ls hs
+  {-# Inline streamUp #-}
+  {-# Inline streamDown #-}
+
+instance RuleContext (TreeIxR p v a O) where
+  type Context (TreeIxR p v a O) = OutsideContext ()
+  initialContext _ = OStatic ()
+  {-# Inline initialContext #-}
+
+-- | We are a @F@orest at position @i@. Now we request the parent, who
+-- happens to be the root of a @T@ree.
+
+instance
+  ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
+  ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxR p v a O) where
+  termStream (ts:|Node f xs) (cs:.OFirstLeft ()) (us:.TreeIxR _ u ut) (is:.TreeIxR frst i it)
+    = map (\(TState s ii ee) ->
+              let RiTirO l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+                  l' = parent frst VG.! i
+              in  TState s (ii:.:RiTirO l' T) (ee:.f xs l') )
+    . termStream ts cs us is
+    . staticCheck (i<u && i>0 && parent frst VG.! i >= 0 && it == F)
+  {-# Inline termStream #-}
+
+{-
+instance TermStaticVar (Node r x) (TreeIxR p v a I) where
+  termStaticVar _ sv _ = sv
+  termStreamIndex _ _ (TreeIxR frst i j) = TreeIxR frst i j
+  {-# Inline [0] termStaticVar   #-}
+  {-# Inline [0] termStreamIndex #-}
+-}
+
