@@ -217,6 +217,22 @@ instance
     $ mkStream S vs lus is
   {-# INLINE mkStream #-}
 
+-- | When choosing tree and forest sizes, 
+
+data TFsize s
+  -- The tree shall have size epsilon, the forest be full. If @TF@ is @F@
+  -- then the forest is a real forest, if @TF@ is @T@ then the forest is
+  -- a tree.
+  = EpsFull TF s
+  -- | The tree is full (and actually a forest), the remainder of the
+  -- forest is epsilon. This means that in the "tree" synvar, we can only
+  -- do indels.
+  | FullEpsFF s
+  -- | The tree is set, the remaining forest gets what is left.
+  | OneRemFT s
+  -- | The tree is set, the remaining forest is empty.
+  | OneEpsTT s
+  | Finis
 
 --synVar
 
@@ -234,35 +250,35 @@ instance
         in tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $ SvS s (tt:.TreeIxR frst (min l u) tf) (ii:.:RiTirI u F)
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j jj)
     = flatten mk step . addIndexDenseGo cs vs us is
-    where mk svS = return $ Just $ (jj, Left svS)
-          step Nothing = return $ Done
+    where mk svS = return $ EpsFull jj svS
+          step Finis = return $ Done
           -- _ -> TF , for forests: with T having size ε, F having full size
-          step (Just (F, Left svS@(SvS s tt ii)))
+          step (EpsFull F svS@(SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                  tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst u F) (ii:.:RiTirI k F)) (Just (F, Right (F,svS)))
+                   return $ Yield (SvS s (tt:.TreeIxR frst u F) (ii:.:RiTirI k F)) (FullEpsFF svS)
           -- _ -> TF, for forests: with T having full size, F having size ε
-          step (Just (F, Right (F,svS@(SvS s tt ii))))
+          step (FullEpsFF svS@(SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                  tSI (glb) ('W',u,k,T,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst k F) (ii:.:RiTirI u F)) (Just (F, Right (T,svS)))
+                   return $ Yield (SvS s (tt:.TreeIxR frst k F) (ii:.:RiTirI u F)) (OneRemFT svS)
           -- _ -> TF for forests: with T having size 1, F having full - 1 size
-          step (Just (F, Right (T,SvS s tt ii)))
+          step (OneRemFT (SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      l         = rbdef u frst k
                  tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l F)) Nothing
+                   return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l F)) Finis
           -- _ -> TF , for trees: with T having size ε, F having size 1 (or T)
-          step (Just (T, Left svS@(SvS s tt ii)))
+          step (EpsFull T svS@(SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                  tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst u F) (ii:.:RiTirI k T)) (Just (T, Right (T,svS)))
+                   return $ Yield (SvS s (tt:.TreeIxR frst u F) (ii:.:RiTirI k T)) (OneEpsTT svS)
           -- _ -> TF, for trees: with T having size 1, F having size ε
-          step (Just (T, Right (T,SvS s tt ii)))
+          step (OneEpsTT (SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      l         = rbdef u frst k
                  tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI u F)) Nothing
+                   return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI u F)) Finis
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
@@ -293,7 +309,7 @@ rbdef d frst k = maybe d (\z -> if z<0 then d else z) $ rsib frst VG.!? k
 
 -- * Outside instances
 
-data instance RunningIndex (TreeIxR p v a O) = RiTirO !Int !TF
+data instance RunningIndex (TreeIxR p v a O) = RiTirO !Int !TF !Int !TF -- I, I, O, O
 
 -- | Outside works in the opposite direction.
 --
@@ -318,18 +334,16 @@ instance
   ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxR p v a O) where
   termStream (ts:|Node f xs) (cs:.OFirstLeft ()) (us:.TreeIxR _ u ut) (is:.TreeIxR frst i it)
     = map (\(TState s ii ee) ->
-              let RiTirO l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+              let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
                   l' = parent frst VG.! i
-              in  TState s (ii:.:RiTirO l' T) (ee:.f xs l') )
+              in  TState s (ii:.:RiTirO l' T lo tfo) (ee:.f xs l') )
     . termStream ts cs us is
     . staticCheck (i<u && i>0 && parent frst VG.! i >= 0 && it == F)
   {-# Inline termStream #-}
 
-{-
-instance TermStaticVar (Node r x) (TreeIxR p v a I) where
+instance TermStaticVar (Node r x) (TreeIxR p v a O) where
   termStaticVar _ sv _ = sv
   termStreamIndex _ _ (TreeIxR frst i j) = TreeIxR frst i j
   {-# Inline [0] termStaticVar   #-}
   {-# Inline [0] termStreamIndex #-}
--}
 
