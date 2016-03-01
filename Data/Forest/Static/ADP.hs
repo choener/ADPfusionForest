@@ -309,6 +309,9 @@ rbdef d frst k = maybe d (\z -> if z<0 then d else z) $ rsib frst VG.!? k
 
 -- * Outside instances
 
+-- | Outside running index structure requires two local index structures.
+-- One is for the inside symbols, one for the outside symbol.
+
 data instance RunningIndex (TreeIxR p v a O) = RiTirO !Int !TF !Int !TF -- I, I, O, O
 
 -- | Outside works in the opposite direction.
@@ -325,6 +328,10 @@ instance RuleContext (TreeIxR p v a O) where
   type Context (TreeIxR p v a O) = OutsideContext ()
   initialContext _ = OStatic ()
   {-# Inline initialContext #-}
+
+
+
+-- Node
 
 -- | We are a @F@orest at position @i@. Now we request the parent, who
 -- happens to be the root of a @T@ree.
@@ -346,4 +353,69 @@ instance TermStaticVar (Node r x) (TreeIxR p v a O) where
   termStreamIndex _ _ (TreeIxR frst i j) = TreeIxR frst i j
   {-# Inline [0] termStaticVar   #-}
   {-# Inline [0] termStreamIndex #-}
+
+
+
+-- Deletion
+
+instance
+  ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
+  ) => TermStream m (TermSymbol ts Deletion) s (is:.TreeIxR p v a O) where
+  termStream (ts:|Deletion) (cs:._) (us:.u) (is:.TreeIxR frst i ii)
+    = map (\(TState s ii ee) ->
+              let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+              in  TState s (ii:.:RiTirO li tfi lo tfo) (ee:.()) )
+    . termStream ts cs us is
+  {-# Inline termStream #-}
+
+
+instance TermStaticVar Deletion (TreeIxR p v a O) where
+  termStaticVar _ sv _ = sv
+  termStreamIndex _ _ i = i
+  {-# Inline [0] termStaticVar   #-}
+  {-# Inline [0] termStreamIndex #-}
+
+
+
+-- Invisible starting symbol
+
+instance (Monad m) => MkStream m S (TreeIxR p v a O) where
+  mkStream S _ (TreeIxR frst u ut) (TreeIxR _ k kt)
+    = staticCheck (k>=0 && k<=u) . singleton . ElmS $ RiTirO k kt k kt
+  {-# Inline mkStream #-}
+
+instance
+  ( Monad m
+  , MkStream m S is
+  ) => MkStream m S (is:.TreeIxR p v a O) where
+  mkStream S (vs:._) (lus:.TreeIxR frst u ut) (is:.TreeIxR _ k kt)
+    = map (\(ElmS zi) -> ElmS $ zi :.: RiTirO k kt k kt)
+    . staticCheck (k>=0 && k<=u)
+    $ mkStream S vs lus is
+  {-# INLINE mkStream #-}
+
+
+
+-- synVar: @Table I@ with @Index O@ We only have two options: @X' -> Y' Z@
+-- with @Z@ being in @OStatic@ position or @X' -> Y Z'@ with @Y@ being in
+-- @OFirstLeft@ position.
+
+instance
+  ( IndexHdr s x0 i0 us (TreeIxR p v a I) cs c is (TreeIxR p v a O)
+  , MinSize c
+  ) => AddIndexDense s (us:.TreeIxR p v a I) (cs:.c) (is:.TreeIxR p v a O) where
+  addIndexDenseGo (cs:._) (vs:.OStatic ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ _ _)
+    = undefined
+  addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ _ _)
+    = undefined
+
+--synVar: @Table I@   with @Index O@
+
+instance
+  ( IndexHdr s x0 i0 us (TreeIxR p v a O) cs c is (TreeIxR p v a O)
+  , MinSize c
+  ) => AddIndexDense s (us:.TreeIxR p v a O) (cs:.c) (is:.TreeIxR p v a O) where
+  addIndexDenseGo (cs:._) (vs:.OStatic ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j _)
+    = undefined
+
 
