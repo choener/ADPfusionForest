@@ -122,12 +122,14 @@ run f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
 --       (c,c)       (-,d)                    100  (-5)
 
 testalign = do
-  let t1 = f "((d,e,f)b,(z)c)a;"  --"((b,c)e,d)a;"
-      t2 = f "(((d,e)y,f)b,(c,(x)i)g)a;"  --"(b,(c,d)f)a;"
+--  let t1 = f "((d,e,f)b,(z)c)a;"  --
+--      t2 = f "(((d,e)y,f)b,(c,(x)i)g)a;"  --
 --  let t1 = f "d;(b)e;" -- (b,c)e;"    -- '-3'
 --      t2 = f "(d)f;b;" -- b;"
 --  let t1 = f "(b:1,c:1)a:1;"
 --      t2 = f "b:2;c:2;"
+  let t1 = f "((b,c)e,d)a;"
+      t2 = f "(b,(c,d)f)a;"
       f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
   print t1
   putStrLn ""
