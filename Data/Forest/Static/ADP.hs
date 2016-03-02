@@ -396,6 +396,12 @@ instance
 
 
 
+-- In principle, we are missing an extra boolean case on @j==u@ or @j==l,
+-- l/=u@ for tree-symbols, i.e. those that bind terminals. However, in
+-- these linear languages, there can be only one such symbol per rule. This
+-- in turn means they are never in outside mode on the r.h.s. and hence we
+-- have no ambiguity problems.
+
 -- synVar: @Table I@ with @Index O@ We only have two options: @X' -> Y' Z@
 -- with @Z@ being in @OStatic@ position or @X' -> Y Z'@ with @Y@ being in
 -- @OFirstLeft@ position.
