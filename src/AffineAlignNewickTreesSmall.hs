@@ -27,21 +27,26 @@ Grammar: Global
 N: T -- tree
 N: F -- forest
 N: Z -- tree for gaps
+N: Q -- sibling gap mode
 N: R -- parent gap mode
 -- N: G -- sibling gap together with P
 T: n
 S: [F,F]
 [F,F] -> iter    <<< [T,T] [F,F]
-[F,F] -> iter    <<< [T,Z] [F,F]
-[F,F] -> iter    <<< [Z,T] [F,F]
+[F,F] -> fgap    <<< [T,Z] [Q,Q]
+[F,F] -> fgap    <<< [Z,T] [Q,Q]
 [Z,T] -> indel   <<< [-,n] [R,R]
 [T,Z] -> delin   <<< [n,-] [R,R]
 [T,T] -> align   <<< [n,n] [F,F]
 [F,F] -> done    <<< [e,e]
 [R,R] -> done    <<< [e,e]
-[R,R] -> gapiter <<< [T,T] [R,R]
-[R,R] -> gapiter <<< [T,Z] [R,R]
-[R,R] -> gapiter <<< [Z,T] [R,R]
+[R,R] -> pgap <<< [T,T] [R,R]
+[R,R] -> pgap <<< [T,Z] [R,R]
+[R,R] -> pgap <<< [Z,T] [R,R]
+[Q,Q] -> done    <<< [e,e]
+[Q,Q] -> siter <<< [T,T] [F,F]
+[Q,Q] -> sgap <<< [T,Z] [Q,Q]
+[Q,Q] -> sgap <<< [Z,T] [Q,Q]
 //
 
 Emit: Global
@@ -52,11 +57,14 @@ makeAlgebraProduct ''SigGlobal
 score :: Monad m => Int -> Int -> Int -> SigGlobal m Int Int Info Info
 score m a d = SigGlobal -- match affine deletion 
   { done  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
-  , iter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t+f
-  , align = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f + if label a == label b then m else -m
-  , indel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f - d
-  , delin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f - d
-  , gapiter = \ t f -> a + t + f
+  , iter  = \ t f -> t+f
+  , siter  = \ t f -> t+f
+  , align = \ (Z:.c:.b) f -> tSI glb ("ALIGN",f,c,b) $ f + if label c == label b then m else -100
+  , indel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f
+  , delin = \ (Z:.c:.()) f -> tSI glb ("DELIN",f,c) $ f
+  , fgap = \ t f -> tSI glb ("gap",f+t,d) $ t + f -d --gap open
+  , pgap = \ t f -> tSI glb ("gap",f+t,a) $ t + f -a --gap extension
+  , sgap = \ t f -> tSI glb ("gap",f+t,a) $ t + f -a --gap extension
   , h     = SM.foldl' max (-88888)
   }
 {-# Inline score #-}
@@ -67,10 +75,13 @@ pretty' :: Monad m => SigGlobal m [T.Tree (Info,Info)] [[T.Tree ((Info,Info))]] 
 pretty' = SigGlobal
   { done  = \ (Z:.():.()) -> []
   , iter  = \ t f -> t++f
+  , siter  = \ t f -> t++f
   , align = \ (Z:.a:.b) f -> [T.Node (a,b) f]
   , indel = \ (Z:.():.b) f -> [T.Node (Info "-" 0,b) f]
   , delin = \ (Z:.a:.()) f -> [T.Node (a,Info "-" 0) f]
-  , gapiter = \ t f -> t ++ f
+  , pgap = \ t f -> t ++ f
+  , sgap = \ t f -> t ++ f
+  , fgap = \ t f -> t ++ f
   , h     = SM.toList
   }
 {-# Inline pretty' #-}
@@ -81,11 +92,12 @@ type Trix = TreeIxR Pre V.Vector Info I
 type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
 type Frst = Forest Pre V.Vector Info
 
-runForward :: Frst -> Frst -> Int -> Int -> Int -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int
+runForward :: Frst -> Frst -> Int -> Int -> Int -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int
 runForward f1 f2 m a d = let
                          in
                            mutateTablesDefault $
                            gGlobal (score m a d) -- costs
+                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
@@ -96,16 +108,17 @@ runForward f1 f2 m a d = let
 
 
 
-run :: Frst -> Frst -> Int -> Int -> Int -> (Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int,Int,Pretty')
+run :: Frst -> Frst -> Int -> Int -> Int -> (Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int,Int,Pretty')
 run f1 f2 m a d = (fwd,unId $ axiom a1, unId $ axiom b1)
-  where fwd@(Z:.a1:.a2:.a3:.a4:.a5) = runForward f1 f2 m a d
-        Z:.b1:.b2:.b3:.b4:.b5 
+  where fwd@(Z:.a1:.a2:.a3:.a4:.a5:.a6) = runForward f1 f2 m a d
+        Z:.b1:.b2:.b3:.b4:.b5:.b6 
                     = gGlobal ((score m a d) <|| pretty') 
                     (toBacktrack a1 (undefined :: Id a -> Id a)) 
                     (toBacktrack a2 (undefined :: Id a -> Id a))  
                     (toBacktrack a3 (undefined :: Id a -> Id a))  
                     (toBacktrack a4 (undefined :: Id a -> Id a))  
                     (toBacktrack a5 (undefined :: Id a -> Id a))  
+                    (toBacktrack a6 (undefined :: Id a -> Id a))  
                     (node $ F.label f1) (node $ F.label f2)
 
 
@@ -132,8 +145,8 @@ run f1 f2 m a d = (fwd,unId $ axiom a1, unId $ axiom b1)
 --       (c,c)       (-,d)                    100  (-5)
 
 testalign m a d = do
-  let t1 = f "((c)b)a;" --"((d,e,f)b,(z)c)a;"  --"((b,c)e,d)a;"
-      t2 = f "a;" --"(((d,e)y,f)b,(c,(x)i)g)a;"  --"(b,(c,d)f)a;"
+  let t1 = f "a;" --"((d,e,f)b,(z)c)a;"  --"((b,c)e,d)a;"
+      t2 = f "((c)d)a;" --"(((d,e)y,f)b,(c,(x)i)g)a;"  --"(b,(c,d)f)a;"
 --  let t1 = f "d;(b)e;" -- (b,c)e;"    -- '-3'
 --      t2 = f "(d)f;b;" -- b;"
 --  let t1 = f "(b:1,c:1)a:1;"
