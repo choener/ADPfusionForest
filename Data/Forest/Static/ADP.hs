@@ -310,6 +310,9 @@ trright frst k = rbdef (VG.length $ rsib frst) frst k
 rbdef d frst k = maybe d (\z -> if z<0 then d else z) $ rsib frst VG.!? k
 {-# Inline rbdef #-}
 
+pardef frst k = maybe (-1) id $ parent frst VG.!? k
+{-# Inline pardef #-}
+
 
 
 -- * Outside instances
@@ -324,7 +327,7 @@ data instance RunningIndex (TreeIxR p v a O) = RiTirO !Int !TF !Int !TF -- I, I,
 -- TODO check if the original @Up@ / @Down@ combination is ok.
 
 instance IndexStream z => IndexStream (z:.TreeIxR p v a O) where
-  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk ht) (streamDownStep p lf ht) $ streamUp ls hs
+  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk lf) (streamDownStep p lf ht) $ streamUp ls hs
   streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamUpMk   lf) (streamUpStep   p lf ht) $ streamDown ls hs
   {-# Inline streamUp #-}
   {-# Inline streamDown #-}
@@ -343,19 +346,42 @@ instance RuleContext (TreeIxR p v a O) where
 
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
+  , Show r
   ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxR p v a O) where
   termStream (ts:|Node f xs) (cs:.OFirstLeft ()) (us:.TreeIxR _ u ut) (is:.TreeIxR frst i it)
     = map (\(TState s ii ee) ->
               let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
-                  l' = i-1 -- parent frst VG.! i
+                  l' = li - 1 -- pardef frst li -- parent
               in  TState s (ii:.:RiTirO l' T l' T) (ee:.f xs l') )
     . termStream ts cs us is
-    . staticCheck (i<=u && i>0 && (it==F || it==E)) -- parent frst VG.! i >= 0 && it == F)
+    . staticCheck (i<=u && i>0 && it==F) -- parent frst VG.! i >= 0 && it == F)
   {-# Inline termStream #-}
 
 instance TermStaticVar (Node r x) (TreeIxR p v a O) where
   termStaticVar _ sv _ = sv
   termStreamIndex _ _ (TreeIxR frst i j) = TreeIxR frst i j
+  {-# Inline [0] termStaticVar   #-}
+  {-# Inline [0] termStreamIndex #-}
+
+
+
+-- Epsilon
+
+instance
+  ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
+  ) => TermStream m (TermSymbol ts Epsilon) s (is:.TreeIxR p v a O) where
+  termStream (ts:|Epsilon) (cs:.OStatic ()) (us:.TreeIxR _ u uu) (is:.TreeIxR frst i ii)
+    = map (\(TState s ii ee) ->
+              let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+              in  TState s (ii:.:RiTirO li tfi lo tfo) (ee:.()) )
+    . termStream ts cs us is
+    . staticCheck (i==0 || ii/=E)
+  {-# Inline termStream #-}
+
+
+instance TermStaticVar Epsilon (TreeIxR p v a O) where
+  termStaticVar _ sv _ = sv
+  termStreamIndex _ _ i = i
   {-# Inline [0] termStaticVar   #-}
   {-# Inline [0] termStreamIndex #-}
 
@@ -426,21 +452,23 @@ instance
             in  SvS s (tt:.TreeIxR frst li tfi) (ii:.:RiTirO li tfi lo tfo) -- TODO should set right boundary
   addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j jj)
     = flatten mk step . addIndexDenseGo cs vs us is
-    where mk svS = return $ case jj of
-                    E -> OIE F (error "first index") svS
-                    F -> OIF   (error "first index") svS
-                    T -> OIT                         svS
+    where mk svS@(SvS s tt ii) =
+            let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+            in  return $ case jj of
+                  E -> OIE F li svS
+                  F -> OIF   li  svS
+                  T -> OIT                         svS
           step OIFinis = return Done
           -- left @E@
           step (OIE E  _ _) = return Done
           step (OIE tf l svS) | l<0 = return $ Skip $ OIE (succ tf) (error "first index") svS
           step (OIE tf l svS@(SvS s tt ii))
-            = do let l' = undefined -- TODO next parent (abort condition?)
+            = do let l' = error "next parent" -- TODO next parent (abort condition?)
                  return $ Yield (SvS s (tt:.TreeIxR frst l tf) (ii:.:RiTirO l tf l tf)) (OIE tf l' svS)
           step (OIF l svS) | l<0 = return Done
           step (OIF l svS@(SvS s tt ii))
-            = do let l' = undefined
-                     tf = undefined -- @E@ if zero, else @T@
+            = do let l' = pardef frst l
+                     tf = if l==j then E else T
                  return $ Yield (SvS s (tt:.TreeIxR frst l tf) (ii:.:RiTirO l tf l F)) (OIF l' svS)
           step (OIT svS@(SvS s tt ii))
             = return $ Yield (SvS s (tt:.TreeIxR frst j E) (ii:.:RiTirO j E j T)) OIFinis
@@ -491,6 +519,22 @@ instance
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
 
+instance (MinSize c) => TableStaticVar (u I) c (TreeIxR p v a O) where 
+  tableStaticVar _ _ (OStatic    d) _ = ORightOf d
+  tableStaticVar _ _ (ORightOf   d) _ = ORightOf d
+  tableStaticVar _ _ (OFirstLeft d) _ = OLeftOf  d
+  tableStaticVar _ _ (OLeftOf    d) _ = OLeftOf  d
+  tableStreamIndex _ c _ = id
+  {-# Inline [0] tableStaticVar #-}
+  {-# Inline [0] tableStreamIndex #-}
+
+instance (MinSize c) => TableStaticVar (u O) c (TreeIxR p v a O) where 
+  tableStaticVar _ _ (OStatic  d) _ = OFirstLeft d
+  tableStaticVar _ _ (ORightOf d) _ = OFirstLeft d
+  tableStreamIndex _ c _ = id
+  {-# Inline [0] tableStaticVar #-}
+  {-# Inline [0] tableStreamIndex #-}
+
 
 
 
@@ -506,19 +550,35 @@ data instance RunningIndex (TreeIxR p v a C) = RiTirC !Int !TF
 --
 -- TODO check if the original @Up@ / @Down@ combination is ok.
 
-{-
-instance IndexStream z => IndexStream (z:.TreeIxR p v a O) where
-  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk ht) (streamDownStep p lf ht) $ streamUp ls hs
-  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamUpMk   lf) (streamUpStep   p lf ht) $ streamDown ls hs
+instance IndexStream z => IndexStream (z:.TreeIxR p v a C) where
+  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamUpMk   ht) (streamUpStep   p lf ht) $ streamUp ls hs
+  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk lf) (streamDownStep p lf ht) $ streamDown ls hs
   {-# Inline streamUp #-}
   {-# Inline streamDown #-}
--}
 
 instance RuleContext (TreeIxR p v a C) where
   type Context (TreeIxR p v a C) = ComplementContext
   initialContext _ = Complemented
   {-# Inline initialContext #-}
 
+
+
+-- Invisible starting symbol
+
+instance (Monad m) => MkStream m S (TreeIxR p v a C) where
+  mkStream S _ (TreeIxR frst u ut) (TreeIxR _ k kt)
+    = staticCheck (k>=0 && k<=u) . singleton . ElmS $ RiTirC k kt
+  {-# Inline mkStream #-}
+
+instance
+  ( Monad m
+  , MkStream m S is
+  ) => MkStream m S (is:.TreeIxR p v a C) where
+  mkStream S (vs:._) (lus:.TreeIxR frst u ut) (is:.TreeIxR _ k kt)
+    = map (\(ElmS zi) -> ElmS $ zi :.: RiTirC k kt)
+    . staticCheck (k>=0 && k<=u)
+    $ mkStream S vs lus is
+  {-# INLINE mkStream #-}
 
 
 

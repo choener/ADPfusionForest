@@ -33,25 +33,33 @@ S: [F,F]
 [T,T] -> delin <<< [n,-] [F,F]
 [T,T] -> align <<< [n,n] [F,F]
 [F,F] -> done  <<< [e,e]
---[T,T] -> done  <<< [e,e]   --align (sub)tree with empty (sub)tree
+//
+Outside: Labolg
+Source: Global
 //
 
 Emit: Global
+Emit: Labolg
 |]
 
 makeAlgebraProduct ''SigGlobal
 
+resig :: Monad m => SigGlobal m a b c d -> SigLabolg m a b c d
+resig (SigGlobal gdo git gal gin gde gh) = SigLabolg gdo git gal gin gde gh
+{-# Inline resig #-}
+
 score :: Monad m => SigGlobal m Int Int Info Info
 score = SigGlobal
-  { done  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
-  , iter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t+f
-  , align = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -11
-  , indel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f - 5
-  , delin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f - 3
-  , h     = SM.foldl' max (-88888)
+  { gDone  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
+  , gIter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t+f
+  , gAlign = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -11
+  , gIndel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f - 5
+  , gDelin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f - 3
+  , gH     = SM.foldl' max (-88888)
   }
 {-# Inline score #-}
 
+{-
 type Pretty = [[(Info,Info)]]
 pretty :: Monad m => SigGlobal m [(Info,Info)] [[(Info,Info)]] Info Info
 pretty = SigGlobal
@@ -63,18 +71,19 @@ pretty = SigGlobal
   , h     = SM.toList
   }
 {-# Inline pretty #-}
+-}
 
-type Pretty' = [[T.Tree (Info,Info)]]
-pretty' :: Monad m => SigGlobal m [T.Tree (Info,Info)] [[T.Tree ((Info,Info))]] Info Info
-pretty' = SigGlobal
-  { done  = \ (Z:.():.()) -> []
-  , iter  = \ t f -> t++f
-  , align = \ (Z:.a:.b) f -> [T.Node (a,b) f]
-  , indel = \ (Z:.():.b) f -> [T.Node (Info "-" 0,b) f]
-  , delin = \ (Z:.a:.()) f -> [T.Node (a,Info "-" 0) f]
-  , h     = SM.toList
+type Pretty = [[T.Tree (Info,Info)]]
+pretty :: Monad m => SigGlobal m [T.Tree (Info,Info)] [[T.Tree ((Info,Info))]] Info Info
+pretty = SigGlobal
+  { gDone  = \ (Z:.():.()) -> []
+  , gIter  = \ t f -> t++f
+  , gAlign = \ (Z:.a:.b) f -> [T.Node (a,b) f]
+  , gIndel = \ (Z:.():.b) f -> [T.Node (Info "-" 0,b) f]
+  , gDelin = \ (Z:.a:.()) f -> [T.Node (a,Info "-" 0) f]
+  , gH     = SM.toList
   }
-{-# Inline pretty' #-}
+{-# Inline pretty #-}
 
 
 
@@ -89,13 +98,29 @@ runForward f1 f2 = mutateTablesDefault $
                    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                    (node $ F.label f1)
                    (node $ F.label f2)
+{-# NoInline runForward #-}
+
+type Trox = TreeIxR Pre V.Vector Info O
+type OTbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trox:.Trox) x
+
+runOutside :: Frst -> Frst -> Z:.Tbl Int:.Tbl Int -> Z:.OTbl Int:.OTbl Int
+runOutside f1 f2 (Z:.iF:.iT)
+  = mutateTablesDefault $
+    gLabolg (resig score)
+    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+    iF
+    iT
+    (node $ F.label f1)
+    (node $ F.label f2)
+{-# NoInline runOutside #-}
 
 
-
-run :: Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,Int,Pretty')
-run f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
+--run :: Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,Int,Pretty)
+run f1 f2 = (fwd,out,unId $ axiom f, unId $ axiom fb)
   where fwd@(Z:.f:.t) = runForward f1 f2
-        Z:.fb:.tb = gGlobal (score <|| pretty') (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
+        out@(Z:.oft:.ott) = runOutside f1 f2 fwd
+        Z:.fb:.tb = gGlobal (score <|| pretty) (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
                     (node $ F.label f1) (node $ F.label f2)
 
 
@@ -135,7 +160,8 @@ testalign = do
   putStrLn ""
   print t2
   putStrLn ""
-  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt') = run t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,out,sc,bt') = run t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (Z:.ITbl _ _ _ oft _ :. ITbl _ _ _ ott _) = out
  -- mapM_ print $ assocs f
   print ""
  -- mapM_ print $ assocs t
@@ -147,6 +173,8 @@ testalign = do
     putStrLn ""
     forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
   print sc
+  print oft
+  print ott
 
 
 main :: IO ()
