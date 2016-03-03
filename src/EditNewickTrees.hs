@@ -48,7 +48,7 @@ makeAlgebraProduct ''SigGlobal
 
 score :: Monad m => SigGlobal m Int Int Info Info
 score = SigGlobal
-  { align = \ f ( Z:.n0:.n1) -> f + if label n0 == label n1 then 100 else -1111
+  { align = \ f ( Z:.n0:.n1) -> f + if label n0 == label n1 then 100 else -111
   , done = \(Z:.():.()) -> 0
   , iter = \ f t -> f+t
   , indel = \ f (Z:.():.n1) -> f - 1
@@ -86,8 +86,8 @@ pretty' = SigGlobal
   { done  = \ (Z:.():.()) -> []
   , iter  = \ f t -> f++t
   , align = \ f (Z:.a:.b) -> [T.Node (a,b) f]
-  , indel = \ f (Z:.():.b) -> f --[T.Node (Info "-" 0,b) f]
-  , delin = \ f (Z:.a:.()) -> f --[T.Node (a,Info "-" 0) f]
+  , indel = \ f (Z:.():.b) -> [T.Node (Info "-" 0,b) f]
+  , delin = \ f (Z:.a:.()) -> [T.Node (a,Info "-" 0) f]
   , h     = SM.toList
   }
 {-# Inline pretty' #-}
@@ -125,8 +125,8 @@ testedit = do
   -- b      a   b
   -- |
   -- a
-  let t1 = f "((a)b)c;" --"(a,(b)c)d;"--"((b,c)e,d)a;"
-      t2 = f "(a,b)c;" --"((a,b)d)c;"--"(b,(c,d)f)a;"
+  let t2 = f "((a)b)c;" --"(a,(b)c)d;"--"((b,c)e,d)a;"
+      t1 = f "(a,b)c;" --"((a,b)d)c;"--"(b,(c,d)f)a;"
 --  let t1 = f "d;(b)e;" -- (b,c)e;"    -- '-3'
 --      t2 = f "(d)f;b;" -- b;"
 --  let t1 = f "(b:1,c:1)a:1;"
