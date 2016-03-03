@@ -93,8 +93,8 @@ streamDownMk lf z = return (z,lf,minBound :: TF)
 
 streamDownStep p lf ht (z,k,tf)
   | k > ht         = return $ SM.Done
-  | tf == maxBound = return $ SM.Yield (z:.TreeIxR p k T) (z,k+1,minBound)
-  | otherwise      = return $ SM.Yield (z:.TreeIxR p k F) (z,k,succ tf)
+  | tf == maxBound = return $ SM.Yield (z:.TreeIxR p k tf) (z,k+1,minBound)
+  | otherwise      = return $ SM.Yield (z:.TreeIxR p k tf) (z,k,succ tf)
 {-# Inline [0] streamDownStep #-}
 
 
@@ -375,7 +375,7 @@ instance
               let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
               in  TState s (ii:.:RiTirO li tfi lo tfo) (ee:.()) )
     . termStream ts cs us is
-    . staticCheck (i==0 || ii/=E)
+    . staticCheck (i==0 || ii==F)
   {-# Inline termStream #-}
 
 
@@ -461,9 +461,11 @@ instance
           step OIFinis = return Done
           -- left @E@
           step (OIE E  _ _) = return Done
-          step (OIE tf l svS) | l<0 = return $ Skip $ OIE (succ tf) (error "first index") svS
+          step (OIE tf l svS@(SvS s _ _)) | l<0 =
+            let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+            in  return $ Skip $ OIE (succ tf) li svS
           step (OIE tf l svS@(SvS s tt ii))
-            = do let l' = error "next parent" -- TODO next parent (abort condition?)
+            = do let l' = pardef frst l
                  return $ Yield (SvS s (tt:.TreeIxR frst l tf) (ii:.:RiTirO l tf l tf)) (OIE tf l' svS)
           step (OIF l svS) | l<0 = return Done
           step (OIF l svS@(SvS s tt ii))

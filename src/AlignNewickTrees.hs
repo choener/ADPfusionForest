@@ -9,6 +9,9 @@ import Data.Vector.Fusion.Util
 import qualified Data.Tree as T
 import Debug.Trace
 import Data.List (nub)
+import Text.Printf
+import Unsafe.Coerce
+import qualified Data.Text as Text
 
 import ADP.Fusion
 import Data.PrimitiveArray as PA hiding (map)
@@ -26,12 +29,14 @@ Verbose
 Grammar: Global
 N: T
 N: F
+N: M
 T: n
 S: [F,F]
 [F,F] -> iter  <<< [T,T] [F,F]
+[F,F] -> iter  <<< [M,M] [F,F]
 [T,T] -> indel <<< [-,n] [F,F]
 [T,T] -> delin <<< [n,-] [F,F]
-[T,T] -> align <<< [n,n] [F,F]
+[M,M] -> align <<< [n,n] [F,F]
 [F,F] -> done  <<< [e,e]
 //
 Outside: Labolg
@@ -48,7 +53,7 @@ resig :: Monad m => SigGlobal m a b c d -> SigLabolg m a b c d
 resig (SigGlobal gdo git gal gin gde gh) = SigLabolg gdo git gal gin gde gh
 {-# Inline resig #-}
 
-score :: Monad m => SigGlobal m Int Int Info Info
+score :: Monad m => SigGlobal m Double Double Info Info
 score = SigGlobal
   { gDone  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
   , gIter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t+f
@@ -58,6 +63,17 @@ score = SigGlobal
   , gH     = SM.foldl' max (-88888)
   }
 {-# Inline score #-}
+
+part :: Monad m => SigGlobal m Double Double Info Info
+part = SigGlobal
+  { gDone  = \ (Z:.():.()) -> 1
+  , gIter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t*f
+  , gAlign = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f * if label a == label b then 1 else 0.1
+  , gIndel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f * 0.2
+  , gDelin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f * 0.3
+  , gH     = SM.foldl' (+) 0
+  }
+{-# Inline part #-}
 
 {-
 type Pretty = [[(Info,Info)]]
@@ -91,37 +107,52 @@ type Trix = TreeIxR Pre V.Vector Info I
 type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
 type Frst = Forest Pre V.Vector Info
 
-runForward :: Frst -> Frst -> Z:.Tbl Int:.Tbl Int
+runForward :: Frst -> Frst -> Z:.Tbl Double:.Tbl Double:.Tbl Double
 runForward f1 f2 = mutateTablesDefault $
                    gGlobal score
                    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                   (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                    (node $ F.label f1)
                    (node $ F.label f2)
 {-# NoInline runForward #-}
 
+runInside :: Frst -> Frst -> Z:.Tbl Double:.Tbl Double:.Tbl Double
+runInside f1 f2 = mutateTablesDefault $
+                   gGlobal part
+                   (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                   (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                   (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                   (node $ F.label f1)
+                   (node $ F.label f2)
+{-# NoInline runInside #-}
+
 type Trox = TreeIxR Pre V.Vector Info O
 type OTbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trox:.Trox) x
 
-runOutside :: Frst -> Frst -> Z:.Tbl Int:.Tbl Int -> Z:.OTbl Int:.OTbl Int
-runOutside f1 f2 (Z:.iF:.iT)
+runOutside :: Frst -> Frst -> Z:.Tbl Double:.Tbl Double:.Tbl Double -> Z:.OTbl Double:.OTbl Double:.OTbl Double
+runOutside f1 f2 (Z:.iF:.iM:.iT)
   = mutateTablesDefault $
-    gLabolg (resig score)
-    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+    gLabolg (resig part)
     (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
     iF
+    iM
     iT
     (node $ F.label f1)
     (node $ F.label f2)
 {-# NoInline runOutside #-}
 
 
---run :: Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,Int,Pretty)
-run f1 f2 = (fwd,out,unId $ axiom f, unId $ axiom fb)
-  where fwd@(Z:.f:.t) = runForward f1 f2
-        out@(Z:.oft:.ott) = runOutside f1 f2 fwd
-        Z:.fb:.tb = gGlobal (score <|| pretty) (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
-                    (node $ F.label f1) (node $ F.label f2)
+runS f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
+  where fwd@(Z:.f:.m:.t) = runForward f1 f2
+        Z:.fb:.fm:.tb = gGlobal (score <|| pretty) (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack m (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))
+                        (node $ F.label f1) (node $ F.label f2)
+
+runIO f1 f2 = (fwd,out,unId $ axiom f)
+  where fwd@(Z:.f:.m:.t) = runInside f1 f2
+        out@(Z:.oft:.omt:.ott) = runOutside f1 f2 fwd
 
 
 --         a            a
@@ -146,35 +177,53 @@ run f1 f2 = (fwd,out,unId $ axiom f, unId $ axiom fb)
 --            /     \
 --       (c,c)       (-,d)                    100  (-5)
 
-testalign = do
---  let t1 = f "((d,e,f)b,(z)c)a;"  --
---      t2 = f "(((d,e)y,f)b,(c,(x)i)g)a;"  --
---  let t1 = f "d;(b)e;" -- (b,c)e;"    -- '-3'
---      t2 = f "(d)f;b;" -- b;"
---  let t1 = f "(b:1,c:1)a:1;"
---      t2 = f "b:2;c:2;"
-  let t1 = f "((b,c)e,d)a;"
-      t2 = f "(b,(c,d)f)a;"
-      f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
+t11 = "a;"
+t12 = "a;"
+t21 = "(b,c)a;"
+t22 = "(b,c)a;"
+t31 = "((d,e,f)b,(z)c)a;"  --
+t32 = "(((d,e)y,f)b,(c,(x)i)g)a;"  --
+t41 = "d;(b)e;" -- (b,c)e;"    -- '-3'
+t42 = "(d)f;b;" -- b;"
+t51 = "(b:1,c:1)a:1;"
+t52 = "b:2;c:2;"
+t61 = "((b,c)e,d)a;"
+t62 = "(b,(c,d)f)a;"
+
+testalignS t1' t2' = do
+  let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
+      t1 = f $ Text.pack t1'
+      t2 = f $ Text.pack t2'
   print t1
   putStrLn ""
   print t2
   putStrLn ""
-  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,out,sc,bt') = run t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
-  let (Z:.ITbl _ _ _ oft _ :. ITbl _ _ _ ott _) = out
- -- mapM_ print $ assocs f
+  let (fwd,sc,bt') = runS t1 t2
+  let (Z:.ITbl _ _ _ ift _ :. ITbl _ _ _ imt _ :. ITbl _ _ _ itt _) = fwd
   print ""
- -- mapM_ print $ assocs t
-  --print f
-  --print t
   let bt = take 10 $ nub bt'
   print (length bt', length bt)
   forM_ bt $ \b -> do
     putStrLn ""
     forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
   print sc
-  print oft
-  print ott
+
+testalignIO t1' t2' = do
+  let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
+      t1 = f $ Text.pack t1'
+      t2 = f $ Text.pack t2'
+  print t1
+  putStrLn ""
+  print t2
+  putStrLn ""
+  let (inn,out,sc) = runIO t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (Z:.ITbl _ _ _ ift _ :. ITbl _ _ _ imt _ :. ITbl _ _ _ itt _) = inn
+  let (Z:.ITbl _ _ _ oft _ :. ITbl _ _ _ omt _ :. ITbl _ _ _ ott _) = out
+  print ""
+  mapM_ (\(k,v) -> printf "%30s %10.2f %10.2f %10.2f\n" (show k) v (omt ! k) (ott ! k)) $ assocs oft
+  print ""
+  let (Z:.(TreeIxR frst1 lb1 _):.(TreeIxR frst2 lb2 _), Z:.(TreeIxR _ ub1 _):.(TreeIxR _ ub2 _)) = bounds oft
+  mapM_ (\k -> let k' = unsafeCoerce k in printf "%30s %10.2f %10.2f %10.2f\n" (show k) (imt ! k) (omt ! k') ((imt!k) * (omt!k') / sc)) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T) | k1 <- [lb1 .. ub1], k2 <- [lb2 .. ub2] ]
 
 
 main :: IO ()
