@@ -167,7 +167,7 @@ instance
               let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
               in  TState s (ii:.:RiTirI l tf) (ee:.()) )
     . termStream ts cs us is
-    . staticCheck (ii==E) -- (i==u || ii==E)
+    . staticCheck ( (ii==E) || (u==0 && uu==F) ) -- 2nd condition takes care of empty inputs
   {-# Inline termStream #-}
 
 
@@ -361,7 +361,7 @@ instance RuleContext (TreeIxR p v a O) where
 -- i+1,t      i,T     i,T   -- @t@ = if @i@ ...
 --
 -- Y'     ->  n       X'
--- i,t        i-1,T   i-1,T -- @t@ = if @i-1@ ...
+-- i,t        i-1,T   i-1,T -- @t@ = if @i-1@ has no children, then @E@ else @F@
 
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
@@ -373,7 +373,11 @@ instance
                   l' = li - 1
               in  TState s (ii:.:RiTirO li T l' T) (ee:.f xs l') ) -- @li@, since we have now just 'eaten' @li -1 , li@
     . termStream ts cs us is
-    . staticCheck (i>0 && ((i<u && it==F) || (i==u && it==E))) -- parent frst VG.! i >= 0 && it == F)
+    -- @i>0@ so that we can actually have a parent
+    -- @it==E@ in case we @i-1@ has no children; @it==F@ in case @i-1@ has
+    -- children.
+    . staticCheck (let hc = VG.null (children frst VG.! (i-1))
+                   in  i>0 && (hc && it==E || not hc && it==F))
   {-# Inline termStream #-}
 
 instance TermStaticVar (Node r x) (TreeIxR p v a O) where
@@ -384,7 +388,7 @@ instance TermStaticVar (Node r x) (TreeIxR p v a O) where
 
 
 
--- Epsilon
+-- | Epsilon
 
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
@@ -406,7 +410,9 @@ instance TermStaticVar Epsilon (TreeIxR p v a O) where
 
 
 
--- Deletion
+-- | Deletion.
+--
+-- Has no conditions on when it is acceptable.
 
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
