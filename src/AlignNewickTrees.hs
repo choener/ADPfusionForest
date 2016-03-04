@@ -69,8 +69,8 @@ part = SigGlobal
   { gDone  = \ (Z:.():.()) -> 1
   , gIter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t*f
   , gAlign = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f * if label a == label b then 1 else 0.1
-  , gIndel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f * 0.2
-  , gDelin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f * 0.3
+  , gIndel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f * 0.1
+  , gDelin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f * 0.1
   , gH     = SM.foldl' (+) 0
   }
 {-# Inline part #-}
@@ -216,13 +216,18 @@ testalignIO t1' t2' = do
   putStrLn ""
   print t2
   putStrLn ""
-  let (inn,out,sc) = runIO t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (inn,out,_) = runIO t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
   let (Z:.ITbl _ _ _ ift _ :. ITbl _ _ _ imt _ :. ITbl _ _ _ itt _) = inn
   let (Z:.ITbl _ _ _ oft _ :. ITbl _ _ _ omt _ :. ITbl _ _ _ ott _) = out
-  print ""
-  mapM_ (\(k,v) -> printf "%30s %10.2f %10.2f %10.2f\n" (show k) v (omt ! k) (ott ! k)) $ assocs oft
-  print ""
   let (Z:.(TreeIxR frst1 lb1 _):.(TreeIxR frst2 lb2 _), Z:.(TreeIxR _ ub1 _):.(TreeIxR _ ub2 _)) = bounds oft
+  let ix = (Z:.TreeIxR frst1 lb1 F:.TreeIxR frst2 lb2 F)
+  let sc = ift ! ix
+  printf "%30s %10s %10s %10s\n" ("index"::String) ("i-F"::String) ("i-M"::String) ("i-T"::String)
+  mapM_ (\(k,v) -> printf "%30s %10.2f %10.2f %10.2f\n" (show k) v (imt ! k) (itt ! k)) $ assocs ift
+  print (ix,sc)
+  printf "%30s %10s %10s %10s\n" ("index"::String) ("o-F"::String) ("o-M"::String) ("o-T"::String)
+  mapM_ (\(k,v) -> printf "%30s %10.2f %10.2f %10.2f\n" (show k) v (omt ! k) (ott ! k)) $ assocs oft
+  print sc
   mapM_ (\k -> let k' = unsafeCoerce k in printf "%30s %10.2f %10.2f %10.2f\n" (show k) (imt ! k) (omt ! k') ((imt!k) * (omt!k') / sc)) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T) | k1 <- [lb1 .. ub1], k2 <- [lb2 .. ub2] ]
 
 

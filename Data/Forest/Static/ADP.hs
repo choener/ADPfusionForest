@@ -74,12 +74,12 @@ instance Index (TreeIxR p v a t) where
 
 
 instance IndexStream z => IndexStream (z:.TreeIxR p v a I) where
-  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamUpMk   ht) (streamUpStep   p lf ht) $ streamUp ls hs
-  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk lf) (streamDownStep p lf ht) $ streamDown ls hs
+  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamUpMk   lf ht) (streamUpStep   p lf ht) $ streamUp ls hs
+  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk lf ht) (streamDownStep p lf ht) $ streamDown ls hs
   {-# Inline streamUp #-}
   {-# Inline streamDown #-}
 
-streamUpMk ht z = return (z,ht,maxBound :: TF)
+streamUpMk lf ht z = return (z,ht,maxBound :: TF)
 {-# Inline [0] streamUpMk #-}
 
 streamUpStep p lf ht (z,k,tf)
@@ -88,7 +88,7 @@ streamUpStep p lf ht (z,k,tf)
   | otherwise      = return $ SM.Yield (z:.TreeIxR p k tf) (z,k,pred tf)
 {-# Inline [0] streamUpStep #-}
 
-streamDownMk lf z = return (z,lf,minBound :: TF)
+streamDownMk lf ht z = return (z,lf,minBound :: TF)
 {-# Inline [0] streamDownMk #-}
 
 streamDownStep p lf ht (z,k,tf)
@@ -327,8 +327,8 @@ data instance RunningIndex (TreeIxR p v a O) = RiTirO !Int !TF !Int !TF -- I, I,
 -- TODO check if the original @Up@ / @Down@ combination is ok.
 
 instance IndexStream z => IndexStream (z:.TreeIxR p v a O) where
-  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk lf) (streamDownStep p lf ht) $ streamUp ls hs
-  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamUpMk   lf) (streamUpStep   p lf ht) $ streamDown ls hs
+  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk lf ht) (streamDownStep p lf ht) $ streamUp ls hs
+  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamUpMk   lf ht) (streamUpStep   p lf ht) $ streamDown ls hs
   {-# Inline streamUp #-}
   {-# Inline streamDown #-}
 
@@ -343,6 +343,9 @@ instance RuleContext (TreeIxR p v a O) where
 
 -- | We are a @F@orest at position @i@. Now we request the parent, who
 -- happens to be the root of a @T@ree.
+--
+-- TODO we should actually move the outside index via the @OFirstLeft@
+-- (etc) encoding
 
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
@@ -352,9 +355,9 @@ instance
     = map (\(TState s ii ee) ->
               let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
                   l' = li - 1 -- pardef frst li -- parent
-              in  TState s (ii:.:RiTirO l' T l' T) (ee:.f xs l') )
+              in  TState s (ii:.:RiTirO li T l' T) (ee:.f xs l') ) -- @li@, since we have now just 'eaten' @li -1 , li@
     . termStream ts cs us is
-    . staticCheck (i<=u && i>0 && it==F) -- parent frst VG.! i >= 0 && it == F)
+    . staticCheck (i>0 && ((i<u && it==F) || (i==u && it==E))) -- parent frst VG.! i >= 0 && it == F)
   {-# Inline termStream #-}
 
 instance TermStaticVar (Node r x) (TreeIxR p v a O) where
@@ -375,7 +378,7 @@ instance
               let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
               in  TState s (ii:.:RiTirO li tfi lo tfo) (ee:.()) )
     . termStream ts cs us is
-    . staticCheck (i==0 || ii==F)
+    . staticCheck ((i==0 && ii==F) || (i==0 && u==0 && ii==E))
   {-# Inline termStream #-}
 
 
@@ -495,6 +498,7 @@ instance
                     E -> OOE F svS
                     F -> OOF   svS
                     T -> OOT F svS
+                    -- _ -> OOFinis
           -- done
           step OOFinis = return Done
           -- epsilon on left-hand side
@@ -512,8 +516,9 @@ instance
           -- trees on l.h.s.
           step (OOT F svS@(SvS s tt ii))
             = do let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
-                 let li' = rbdef u frst li
-                 return $ Yield (SvS s (tt:.TreeIxR frst lo F) (ii:.:RiTirO li' F lo tfo)) (OOE T svS)
+                     li'  = rbdef u frst li
+                     tfi' = if li' == u then E else F
+                 return $ Yield (SvS s (tt:.TreeIxR frst lo F) (ii:.:RiTirO li' tfi' lo tfo)) (OOE T svS)
           step (OOT T svS@(SvS s tt ii))
             = do let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
                  return $ Yield (SvS s (tt:.TreeIxR frst lo T) (ii:.:RiTirO u E lo tfo)) OOFinis
@@ -553,8 +558,8 @@ data instance RunningIndex (TreeIxR p v a C) = RiTirC !Int !TF
 -- TODO check if the original @Up@ / @Down@ combination is ok.
 
 instance IndexStream z => IndexStream (z:.TreeIxR p v a C) where
-  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamUpMk   ht) (streamUpStep   p lf ht) $ streamUp ls hs
-  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk lf) (streamDownStep p lf ht) $ streamDown ls hs
+  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamUpMk   lf ht) (streamUpStep   p lf ht) $ streamUp ls hs
+  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk lf ht) (streamDownStep p lf ht) $ streamDown ls hs
   {-# Inline streamUp #-}
   {-# Inline streamDown #-}
 
