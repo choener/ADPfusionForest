@@ -227,8 +227,9 @@ testalignIO t1' t2' = do
   print (ix,sc)
   printf "%30s %10s %10s %10s\n" ("index"::String) ("o-F"::String) ("o-M"::String) ("o-T"::String)
   mapM_ (\(k,v) -> printf "%30s %10.2f %10.2f %10.2f\n" (show k) v (omt ! k) (ott ! k)) $ assocs oft
-  print sc
-  mapM_ (\k -> let k' = unsafeCoerce k in printf "%30s %10.2f %10.2f %10.2f\n" (show k) (imt ! k) (omt ! k') ((imt!k) * (omt!k') / sc)) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T) | k1 <- [lb1 .. ub1], k2 <- [lb2 .. ub2] ]
+  printf "%10.8f\n" sc
+  printf "%30s %10s %10s %10s\n" ("index"::String) ("i-M"::String) ("o-M"::String) ("i*o / sc"::String)
+  mapM_ (\k -> let k' = unsafeCoerce k in printf "%30s %10.7f %10.7f %10.7f\n" (show k) (imt ! k) (omt ! k') ((imt!k) * (omt!k') / sc)) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T) | k1 <- [lb1 .. ub1], k2 <- [lb2 .. ub2] ]
 
 
 main :: IO ()

@@ -107,7 +107,7 @@ instance RuleContext (TreeIxR p v a I) where
 
 
 
--- parse symbol
+-- Node: parse a local root
 
 instance
   ( TmkCtx1 m ls (Node r x) (TreeIxR p v a t)
@@ -118,6 +118,10 @@ instance
     $ mkStream ls (termStaticVar (Node f xs) sv is) us (termStreamIndex (Node f xs) sv is)
   {-# Inline mkStream #-}
 
+-- |
+--
+-- X    -> n    Y
+-- i,T  -> i,T  (i+1),t    -- @t@ = if @i@ has no children, then @E@, else @F@.
 
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a I)
@@ -125,8 +129,8 @@ instance
   termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxR _ u ut) (is:.TreeIxR frst i it)
     = map (\(TState s ii ee) ->
               let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                  l'  = if VG.null (children frst VG.! l) then u else l+1
-                  tf' = if l'==u then E else F
+                  l'  = l+1
+                  tf'  = if VG.null (children frst VG.! l) then E else F
               in  {- traceShow ("N"::String,l,tf) $ -} TState s (ii:.:RiTirI l' tf') (ee:.f xs l) )
     . termStream ts cs us is
     . staticCheck (i<u && it == T)
@@ -140,7 +144,10 @@ instance TermStaticVar (Node r x) (TreeIxR p v a I) where
   {-# Inline [0] termStreamIndex #-}
 
 
---Epsilon
+-- | Epsilon
+--
+-- X    -> ε
+-- i,E     i,E    ∀ i
 
 instance
   ( TmkCtx1 m ls Epsilon (TreeIxR p v a t)
@@ -160,7 +167,7 @@ instance
               let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
               in  TState s (ii:.:RiTirI l tf) (ee:.()) )
     . termStream ts cs us is
-    . staticCheck (i==u || ii==E)
+    . staticCheck (ii==E) -- (i==u || ii==E)
   {-# Inline termStream #-}
 
 
@@ -346,6 +353,15 @@ instance RuleContext (TreeIxR p v a O) where
 --
 -- TODO we should actually move the outside index via the @OFirstLeft@
 -- (etc) encoding
+--
+-- X    -> n    Y
+-- i,T  -> i,T  i+1,t     -- @t@ = if @i@ has no children, then @E@, else @F@.
+--
+-- Y'     ->  n       X'
+-- i+1,t      i,T     i,T   -- @t@ = if @i@ ...
+--
+-- Y'     ->  n       X'
+-- i,t        i-1,T   i-1,T -- @t@ = if @i-1@ ...
 
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
@@ -354,7 +370,7 @@ instance
   termStream (ts:|Node f xs) (cs:.OFirstLeft ()) (us:.TreeIxR _ u ut) (is:.TreeIxR frst i it)
     = map (\(TState s ii ee) ->
               let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
-                  l' = li - 1 -- pardef frst li -- parent
+                  l' = li - 1
               in  TState s (ii:.:RiTirO li T l' T) (ee:.f xs l') ) -- @li@, since we have now just 'eaten' @li -1 , li@
     . termStream ts cs us is
     . staticCheck (i>0 && ((i<u && it==F) || (i==u && it==E))) -- parent frst VG.! i >= 0 && it == F)
