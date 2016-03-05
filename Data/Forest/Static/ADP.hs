@@ -450,7 +450,12 @@ instance
     $ mkStream S vs lus is
   {-# INLINE mkStream #-}
 
+-- For both, I / O and O / O systems, we need to consider a large number of
+-- cases. The general rule @X -> Y Z@ with all variants follows below.
+--
+--
 
+-- | The different cases for @O@ context with @O@ tables.
 
 data OOEFT x = OOE TF x | OOF x | OOT TF x | OOFinis
 
