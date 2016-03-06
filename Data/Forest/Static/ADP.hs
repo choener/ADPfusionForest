@@ -66,7 +66,7 @@ instance Index (TreeIxR p v a t) where
   {-# Inline linearIndex #-}
   smallestLinearIndex _ = error "still needed?"
   {-# Inline smallestLinearIndex #-}
-  largestLinearIndex (TreeIxR p u ut) = (fromEnum (maxBound :: TF) + 1) * u + 1
+  largestLinearIndex (TreeIxR p u ut) = (fromEnum (maxBound :: TF) + 1) * u + fromEnum (maxBound :: TF)
   {-# Inline largestLinearIndex #-}
   size (TreeIxR _ l ll) (TreeIxR _ u uu) = (fromEnum (maxBound :: TF) + 1) * (u+1)
   {-# Inline size #-}

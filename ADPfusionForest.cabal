@@ -89,6 +89,7 @@ executable AlignNewickTrees
                  ,  FormalGrammars         >= 0.3      &&  < 0.4
                  ,  PrimitiveArray
                  ,  vector
+                 , log-domain             >= 0.10   &&  < 0.11
   else
     buildable:
       False

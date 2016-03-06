@@ -12,6 +12,9 @@ import Data.List (nub)
 import Text.Printf
 import Unsafe.Coerce
 import qualified Data.Text as Text
+import Numeric.Log
+import Data.List (sortBy)
+import Data.Ord (comparing)
 
 import ADP.Fusion
 import Data.PrimitiveArray as PA hiding (map)
@@ -64,14 +67,14 @@ score = SigGlobal
   }
 {-# Inline score #-}
 
-part :: Monad m => SigGlobal m Double Double Info Info
+part :: Monad m => SigGlobal m (Log Double) (Log Double) Info Info
 part = SigGlobal
   { gDone  = \ (Z:.():.()) -> 1
   , gIter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t * f
   , gAlign = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f * if label a == label b then 1 else 0.1
   , gIndel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f * 0.1
   , gDelin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f * 0.1
-  , gH     = SM.foldl' (+) 0
+  , gH     = SM.foldl' (+) 0.0000001
   }
 {-# Inline part #-}
 
@@ -103,7 +106,7 @@ runForward f1 f2 = mutateTablesDefault $
                    (node $ F.label f2)
 {-# NoInline runForward #-}
 
-runInside :: Frst -> Frst -> Z:.Tbl Double:.Tbl Double:.Tbl Double
+runInside :: Frst -> Frst -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double)
 runInside f1 f2 = mutateTablesDefault $
                    gGlobal part
                    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
@@ -116,7 +119,7 @@ runInside f1 f2 = mutateTablesDefault $
 type Trox = TreeIxR Pre V.Vector Info O
 type OTbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trox:.Trox) x
 
-runOutside :: Frst -> Frst -> Z:.Tbl Double:.Tbl Double:.Tbl Double -> Z:.OTbl Double:.OTbl Double:.OTbl Double
+runOutside :: Frst -> Frst -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double) -> Z:.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double)
 runOutside f1 f2 (Z:.iF:.iM:.iT)
   = mutateTablesDefault $
     gLabolg (resig part)
@@ -213,15 +216,26 @@ testalignIO t1' t2' = do
   --let ox = (Z:.TreeIxR frst1 ub1 E:.TreeIxR frst2 ub2 E)
   --let sc = oft ! ox
   printf "%30s %10s %10s %10s\n" ("index"::String) ("i-F"::String) ("i-M"::String) ("i-T"::String)
-  mapM_ (\(k,v) -> printf "%30s %10.2f %10.2f %10.2f\n" (show k) v (imt ! k) (itt ! k)) $ assocs ift
-  print (ix,sc)
+  mapM_ (\(k,v) -> printf "%30s %10.5f %10.5f %10.5f\n" (show k) (exp $ ln v) (exp $ ln $ imt ! k) (exp $ ln $ itt ! k)) $ assocs ift
+  putStrLn ""
+  printf "%30s %10.8f\n" (show ix) (exp $ ln sc)
+  putStrLn ""
+  --
   printf "%30s %10s %10s %10s\n" ("index"::String) ("o-F"::String) ("o-M"::String) ("o-T"::String)
-  mapM_ (\(k,v) -> printf "%30s %10.2f %10.2f %10.2f\n" (show k) v (omt ! k) (ott ! k)) $ assocs oft
-  printf "%10.8f\n" sc
+  mapM_ (\(k,v) -> printf "%30s %10.5f %10.5f %10.5f\n" (show k) (exp $ ln v) (exp $ ln $ omt ! k) (exp $ ln $ ott ! k)) $ assocs oft
+  putStrLn ""
   printf "%30s %10s %10s %10s %6s %6s\n" ("index"::String) ("i-M"::String) ("o-M"::String) ("i*o / sc"::String) ("lbl 1" :: String) ("lbl 2" :: String)
   mapM_ (\(k,k1,k2) -> let k' = unsafeCoerce k
-                       in  printf "%30s %10.7f %10.7f %10.7f %6s %6s\n" (show k) (imt ! k) (omt ! k') ((imt!k) * (omt!k') / sc) (maybe "-" label $ F.label t1 VG.!? k1) (maybe "-" label $ F.label t2 VG.!? k2)
+                       in  printf "%30s %10.7f %10.7f %10.7f %6s %6s\n"
+                                        (show k)
+                                        (exp $ ln $ imt ! k) (exp $ ln $ omt ! k') (exp $ ln $ (imt!k) * (omt!k') / sc)
+                                        (maybe "-" label $ F.label t1 VG.!? k1) (maybe "-" label $ F.label t2 VG.!? k2)
         ) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T,k1,k2) | k1 <- [lb1 .. ub1], k2 <- [lb2 .. ub2] ]
+  --let (buL,buU) = bounds ift
+  --ixs <- (SM.toList $ streamUp buL buU)
+  --let ixs' = map (\k -> (linearIndex buL buU k,k)) ixs
+  --mapM_ print $ sortBy (comparing fst) ixs'
+  --print $ size buL buU
 
 
 main :: IO ()
