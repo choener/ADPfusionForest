@@ -67,27 +67,13 @@ score = SigGlobal
 part :: Monad m => SigGlobal m Double Double Info Info
 part = SigGlobal
   { gDone  = \ (Z:.():.()) -> 1
-  , gIter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t*f
+  , gIter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t * f
   , gAlign = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f * if label a == label b then 1 else 0.1
   , gIndel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f * 0.1
   , gDelin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f * 0.1
   , gH     = SM.foldl' (+) 0
   }
 {-# Inline part #-}
-
-{-
-type Pretty = [[(Info,Info)]]
-pretty :: Monad m => SigGlobal m [(Info,Info)] [[(Info,Info)]] Info Info
-pretty = SigGlobal
-  { done  = \ (Z:.():.()) -> [] -- [(Info "" 0, Info "" 0)]
-  , iter  = \ t f -> t++f -- (Info "i1" 0, Info "i2" 0) : t ++ f
-  , align = \ (Z:.a:.b) f -> (a,b) : f
-  , indel = \ (Z:.():.b) f -> (Info "-" 0,b) : f
-  , delin = \ (Z:.a:.()) f -> (a,Info "-" 0) : f
-  , h     = SM.toList
-  }
-{-# Inline pretty #-}
--}
 
 type Pretty = [[T.Tree (Info,Info)]]
 pretty :: Monad m => SigGlobal m [T.Tree (Info,Info)] [[T.Tree ((Info,Info))]] Info Info
@@ -224,6 +210,8 @@ testalignIO t1' t2' = do
   let (Z:.(TreeIxR frst1 lb1 _):.(TreeIxR frst2 lb2 _), Z:.(TreeIxR _ ub1 _):.(TreeIxR _ ub2 _)) = bounds oft
   let ix = (Z:.TreeIxR frst1 lb1 F:.TreeIxR frst2 lb2 F)
   let sc = ift ! ix
+  --let ox = (Z:.TreeIxR frst1 ub1 E:.TreeIxR frst2 ub2 E)
+  --let sc = oft ! ox
   printf "%30s %10s %10s %10s\n" ("index"::String) ("i-F"::String) ("i-M"::String) ("i-T"::String)
   mapM_ (\(k,v) -> printf "%30s %10.2f %10.2f %10.2f\n" (show k) v (imt ! k) (itt ! k)) $ assocs ift
   print (ix,sc)

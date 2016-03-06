@@ -19,6 +19,7 @@ import           Debug.Trace
 import           Data.Strict.Tuple hiding (fst, snd)
 import qualified Data.Forest.Static as F
 import Biobase.Newick
+import Control.Exception (assert)
 
 import           Data.Forest.Static
 import           Data.Forest.Static.Node
@@ -293,7 +294,7 @@ instance
       go (SvS s tt ii) =
         let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
             tf'         = if l==u then E else tf
-        in tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $ SvS s (tt:.TreeIxR frst l tf') (ii:.:RiTirI u F)
+        in tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $ SvS s (tt:.TreeIxR frst l tf') (ii:.:RiTirI u E)
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j jj)
     = flatten mk step . addIndexDenseGo cs vs us is
     where mk svS = return $ EpsFull jj svS
@@ -417,8 +418,8 @@ instance
     -- @i>0@ so that we can actually have a parent
     -- @it==E@ in case we @i-1@ has no children; @it==F@ in case @i-1@ has
     -- children.
-    . staticCheck (let hc = VG.null (children frst VG.! (i-1))
-                   in  i>0 && (hc && it==E || not hc && it==F))
+    . staticCheck (let hc = not $ VG.null (children frst VG.! (i-1))
+                   in  i>0 && (not hc && it==E || hc && it==F))
   {-# Inline termStream #-}
 
 instance TermStaticVar (Node r x) (TreeIxR p v a O) where
@@ -531,7 +532,7 @@ instance
 --          i~u
 --
 -- Z^   ->  Y     X^
--- k,F      i,T   i,F     ∀ i ;; for all trees [i,k) k/=u !
+-- k,F      i,T   i,F     i is left sibling of k
 --          i~k
 --
 --
@@ -578,7 +579,7 @@ data OIEFT x
   | OIETF x Int -- svS , parent index for trees with right boundary @u@
   | OIEEE x     -- svS
   | OIFEF x     -- svS
-  | OIFTF x Int -- svS , parent index for trees with right boundary @j@
+  | OIFTF x     -- svS
   | OITET x     -- svS
   | OIFinis
 
@@ -641,7 +642,7 @@ instance
     = map go .addIndexDenseGo cs vs us is
     where go (SvS s tt ii) =
             let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
-            in  SvS s (tt:.TreeIxR frst li tfi) (ii:.:RiTirO li tfi lo tfo) -- TODO should set right boundary
+            in  SvS s (tt:.TreeIxR frst li tfi) (ii:.:RiTirO j E lo tfo) -- TODO should set right boundary
   addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j jj)
     = flatten mk step . addIndexDenseGo cs vs us is
     where mk svS@(SvS s tt ii) =
@@ -653,26 +654,27 @@ instance
           step OIFinis = return Done
           -- Z^   ->  Y     X^      ∀ i ;; for u,E collect all possible splits.
           -- u,E      i,F   i,F     this is move complete forest down / inside
-          step (OIEFF svS@(SvS s tt ii) k) | j==u && k<=u
-            = return $ Yield (SvS s (tt:.TreeIxR frst k F) (ii:.:RiTirO k F k F)) (OIEFF svS (k+1))
+          step (OIEFF svS@(SvS s tt ii) k) | j==u && k<u
+            = return $ Yield (SvS s (tt:.TreeIxR frst k F) (ii:.:RiTirO u E k F)) (OIEFF svS (k+1))
           step (OIEFF svS _)
-            = let pj = pardef frst j
+            = let pj = maybe (-1) id $ F.lsib frst VG.!? j
               in  return $ Skip $ OIETT svS pj
           -- Z^   ->  Y     X^      further hand down
           -- k,E      i,T   i,T
           --          i_k
           step (OIETT svS@(SvS s tt ii) pj) | j<u && pj>=0
             = let pj' = pardef frst pj
-              in  return $ Yield (SvS s (tt:.TreeIxR frst pj T) (ii:.:RiTirO pj T pj T)) (OIETT svS pj')
+                  tr  = if j==u then E else F
+              in  return $ Yield (SvS s (tt:.TreeIxR frst pj T) (ii:.:RiTirO j tr pj T)) (OIETT svS pj')
           step (OIETT svS _)
-            = let pu = pardef frst u
+            = let pu = pardef frst $ u - 1
               in  return $ Skip $ OIETF svS pu
           -- Z^   ->  Y     X^
           -- u,E      i,T   i,F     ∀ i ;; for all trees [i,u) !
           --          i~u
           step (OIETF svS@(SvS s tt ii) pu) | j==u && pu>=0
             = let pu' = pardef frst pu
-              in  return $ Yield (SvS s (tt:.TreeIxR frst pu T) (ii:.:RiTirO pu T pu F)) (OIETF svS pu')
+              in  return $ Yield (SvS s (tt:.TreeIxR frst pu T) (ii:.:RiTirO u E pu F)) (OIETF svS pu')
           step (OIETF svS _)
             = return $ Skip $ OIEEE svS
           -- Z^   ->  Y     X^
@@ -682,16 +684,13 @@ instance
           -- Z^   ->  Y     X^       we do not split off the first tree; down is empty
           -- i,F      i,E   i,F
           step (OIFEF svS@(SvS s tt ii))
-            = let pj = pardef frst j
-              in  return $ Yield (SvS s (tt:.TreeIxR frst j E) (ii:.:RiTirO j E j F)) (OIFTF svS pj)
+            = return $ Yield (SvS s (tt:.TreeIxR frst j E) (ii:.:RiTirO j E j F)) (OIFTF svS)
           -- Z^   ->  Y     X^
-          -- k,F      i,T   i,F     ∀ i ;; for all trees [i,k) k/=u !
+          -- k,F      i,T   i,F     i is left sibling of k
           --          i~k
-          step (OIFTF svS@(SvS s tt ii) pj) | j<u && pj>=0
-            = let pj' = pardef frst pj
-              in  return $ Yield (SvS s (tt:.TreeIxR frst pj T) (ii:.:RiTirO pj T pj F)) (OIFTF svS pj')
-          step (OIFTF svS _)
-            = return $ Skip $ OIFinis
+          step (OIFTF svS@(SvS s tt ii)) | Just ls <- F.lsib frst VG.!? j, ls >= 0
+            = return $ Yield (SvS s (tt:.TreeIxR frst ls T) (ii:.:RiTirO j F ls F)) OIFinis
+          step (OIFTF _) = return $ Skip $ OIFinis
           -- Z^   ->  Y     X^      do not hand i,T down
           -- i,T      i,E   i,T
           step (OITET svS@(SvS s tt ii))
@@ -738,7 +737,7 @@ instance
     = map go .addIndexDenseGo cs vs us is
     where go (SvS s tt ii) =
             let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
-            in  SvS s (tt:.TreeIxR frst lo tfo) (ii:.:RiTirO li tfi lo tfo) -- TODO should set right boundary
+            in  SvS s (tt:.TreeIxR frst lo tfo) (ii:.:RiTirO li tfi j E) -- TODO should set right boundary
   addIndexDenseGo (cs:._) (vs:.ORightOf ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j jj)
     = flatten mk step . addIndexDenseGo cs vs us is
     where mk svS = return $ case jj of
@@ -756,26 +755,26 @@ instance
           -- Y^   ->  X^    Z       do not hand i,T down
           -- i,E      i,T   i,T
           step (OOE svS@(SvS s tt ii) tf) | tf < maxBound
-            = return $ Yield (SvS s (tt:.TreeIxR frst j tf) (ii:.:RiTirO j tf j tf)) (OOE svS (succ tf))
+            = return $ Yield (SvS s (tt:.TreeIxR frst j tf) (ii:.:RiTirO j tf j E)) (OOE svS (succ tf))
           step (OOE svS@(SvS s tt ii) tf) | tf == maxBound
-            = return $ Yield (SvS s (tt:.TreeIxR frst j tf) (ii:.:RiTirO j tf j tf)) OOFinis
+            = return $ Yield (SvS s (tt:.TreeIxR frst j tf) (ii:.:RiTirO j tf j E)) OOFinis
           -- Y^   ->  X^    Z       move complete forest down
           -- i,F      i,F   u,E
           step (OOFFE svS@(SvS s tt ii))
-            = return $ Yield (SvS s (tt:.TreeIxR frst j F) (ii:.:RiTirO u E j F)) OOFinis
+            = return $ Yield (SvS s (tt:.TreeIxR frst j F) (ii:.:RiTirO u E j E)) OOFinis
           -- Y^   ->  X^    Z
           -- i,T      i,F   k,t     if k==u then E else F ; 1st tree split off
           -- i_k
           step (OOTF svS@(SvS s tt ii))
             = let k = rbdef u frst j
                   tf = if k==u then E else F
-              in  return $ Yield (SvS s (tt:.TreeIxR frst j F) (ii:.:RiTirO k tf j F)) (OOTT svS)
+              in  return $ Yield (SvS s (tt:.TreeIxR frst j F) (ii:.:RiTirO k tf j E)) (OOTT svS)
           -- Y^   ->  X^    Z       further hand down ; k,E because @T@
           -- i,T      i,T   k,E
           -- i_k
           step (OOTT svS@(SvS s tt ii))
             = let k = rbdef u frst j
-              in  return $ Yield (SvS s (tt:.TreeIxR frst j T) (ii:.:RiTirO k E j T)) OOFinis
+              in  return $ Yield (SvS s (tt:.TreeIxR frst j T) (ii:.:RiTirO k E j E)) OOFinis
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
