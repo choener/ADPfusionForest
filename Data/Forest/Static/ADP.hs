@@ -490,6 +490,59 @@ instance
 -- cases. The general rule @X -> Y Z@ with all variants follows below.
 --
 --
+-- @
+--
+-- X    ->  Y     Z
+-- i,E      i,E   i,E
+--
+-- Y^   ->  X^    Z
+-- i,E      i,E   i,E
+--
+-- Z^   ->  Y     X
+-- i,E      i,E   i,E
+--
+--
+--
+-- X    ->  Y     Z       we do not split off the first tree; down is empty
+-- i,F      i,E   i,F
+--
+-- Y^   ->  X^    Z
+-- i,E      i,F   i,F
+--
+-- Z^   ->  Y     X^
+-- i,F      i,E   i,F
+--
+--
+-- X    ->  Y     Z
+-- i,F      i,T   k,t     if k==u then E else F ; 1st tree split off
+--          i~k
+--
+-- Y^   ->  X^    Z
+-- i,T      i,F   k,t     if k==u then E else F
+-- i~k
+--
+-- Z^   ->  Y     X^
+-- u,E      i,T   i,F     ∀ i ;; for all trees [i,u) !
+--          i~u
+--
+-- Z^   ->  Y     X^
+-- k,F      i,T   i,F     ∀ i ;; for all trees [i,k) k/=u !
+--          i~k
+--
+--
+-- X    ->  Y     Z       move complete forest down
+-- i,F      i,F   u,E
+--
+-- Y^   ->  X^    Z
+-- i,F      i,F   u,E
+--
+-- Z^   ->  Y     X^      ∀ i ;; for u,E collect all possible splits.
+-- u,E      i,F   i,F
+--
+--
+--
+--
+-- @
 
 -- | The different cases for @O@ context with @O@ tables.
 
