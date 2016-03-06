@@ -244,7 +244,41 @@ data TFsize s
   | OneEpsTT s
   | Finis
 
---synVar
+-- | Syntactic variables. Different variants on parsing.
+--
+-- In case we have @X -> Y@, no restrictions are placed.
+--
+-- We now need @X -> Y Z@:
+--
+-- @
+--
+-- X    ->  Y     Z
+-- i,E      i,E   i,E
+--
+--
+--
+-- X    ->  Y     Z       we do not split off the first tree
+-- i,F      i,E   i,F
+--
+-- X    ->  Y     Z
+-- i,F      i,T   k,F     k,E, if k==u ; 1st tree split off
+--          i_k
+--
+-- X    ->  Y     Z       move complete forest down
+-- i,F      i,F   u,E
+--
+--
+--
+-- When does this happen? If you have @T -> - F@ then @F@ will now actually
+-- be such a @T@.
+--
+-- X    ->  Y     Z       do not hand i,T down
+-- i,T      i,E   i,T
+--
+-- X    ->  Y     Z       further hand down
+-- i,T      i,T   l,E
+--
+-- @
 
 instance
   ( IndexHdr s x0 i0 us (TreeIxR p v a I) cs c is (TreeIxR p v a I)
@@ -257,11 +291,13 @@ instance
     where
       go (SvS s tt ii) =
         let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-        in tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $ SvS s (tt:.TreeIxR frst (min l u) tf) (ii:.:RiTirI u F)
+            tf'         = if l==u then E else tf
+        in tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $ SvS s (tt:.TreeIxR frst l tf') (ii:.:RiTirI u F)
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j jj)
     = flatten mk step . addIndexDenseGo cs vs us is
     where mk svS = return $ EpsFull jj svS
           step Finis = return $ Done
+          -- nothing here
           step (EpsFull E svS@(SvS s tt ii)) = return $ Yield (SvS s (tt:.TreeIxR frst j E) (ii:.:RiTirI j E)) Finis
           -- _ -> TF , for forests: with T having size ε, F having full size
           step (EpsFull F svS@(SvS s tt ii))
@@ -290,7 +326,7 @@ instance
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      l         = rbdef u frst k
                  tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI u E)) Finis
+                   return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l E)) Finis
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
