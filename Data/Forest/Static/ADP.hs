@@ -276,7 +276,8 @@ data TFsize s
 -- i,T      i,E   i,T
 --
 -- X    ->  Y     Z       further hand down
--- i,T      i,T   l,E
+-- i,T      i,T   k,E
+--          i_k
 --
 -- @
 
@@ -352,6 +353,8 @@ trright frst k = rbdef (VG.length $ rsib frst) frst k
 
 rbdef d frst k = maybe d (\z -> if z<0 then d else z) $ rsib frst VG.!? k
 {-# Inline rbdef #-}
+
+-- | Give us the parent for node @k@ or @-1@ if there is no parent
 
 pardef frst k = maybe (-1) id $ parent frst VG.!? k
 {-# Inline pardef #-}
@@ -498,7 +501,7 @@ instance
 -- Y^   ->  X^    Z
 -- i,E      i,E   i,E
 --
--- Z^   ->  Y     X
+-- Z^   ->  Y     X^
 -- i,E      i,E   i,E
 --
 --
@@ -541,6 +544,29 @@ instance
 --
 --
 --
+-- X    ->  Y     Z       do not hand i,T down
+-- i,T      i,E   i,T
+--
+-- Y^   ->  X^    Z
+-- i,E      i,T   i,T
+--
+-- Z^   ->  Y     X^
+-- i,T      i,E   i,T
+--
+--
+--
+-- X    ->  Y     Z       further hand down
+-- i,T      i,T   k,E
+--          i_k
+--
+-- Y^   ->  X^    Z
+-- i,T      i,T   k,E
+-- i_k
+--
+-- Z^   ->  Y     X^
+-- k,E      i,T   i,T
+--          i_k
+--
 --
 -- @
 
@@ -548,7 +574,15 @@ instance
 
 data OOEFT x = OOE TF x | OOF x | OOT TF x | OOFinis
 
-data OIEFT x = OIE TF Int x | OIF Int x | OIT x | OIFinis
+data OIEFT x -- = OIE TF Int x | OIF Int x | OIT x | OIFinis
+  = OIEFF x Int -- svS , forests starting at @i@
+  | OIETT x Int -- svS , parent index for trees with right boundary @j@
+  | OIETF x Int -- svS , parent index for trees with right boundary @u@
+  | OIEEE x     -- svS
+  | OIFEF x     -- svS
+  | OIFTF x Int -- svS , parent index for trees with right boundary @j@
+  | OITET x     -- svS
+  | OIFinis
 
 -- In principle, we are missing an extra boolean case on @j==u@ or @j==l,
 -- l/=u@ for tree-symbols, i.e. those that bind terminals. However, in
@@ -559,6 +593,38 @@ data OIEFT x = OIE TF Int x | OIF Int x | OIT x | OIFinis
 -- synVar: @Table I@ with @Index O@ We only have two options: @X' -> Y' Z@
 -- with @Z@ being in @OStatic@ position or @X' -> Y Z'@ with @Y@ being in
 -- @OFirstLeft@ position.
+--
+-- @
+--
+-- Z^   ->  Y     X^      ∀ i ;; for u,E collect all possible splits.
+-- u,E      i,F   i,F     this is move complete forest down / inside
+--
+-- Z^   ->  Y     X^      further hand down
+-- k,E      i,T   i,T
+--          i_k
+--
+-- Z^   ->  Y     X^
+-- u,E      i,T   i,F     ∀ i ;; for all trees [i,u) !
+--          i~u
+--
+-- Z^   ->  Y     X^
+-- i,E      i,E   i,E
+--
+--
+--
+-- Z^   ->  Y     X^       we do not split off the first tree; down is empty
+-- i,F      i,E   i,F
+--
+-- Z^   ->  Y     X^
+-- k,F      i,T   i,F     ∀ i ;; for all trees [i,k) k/=u !
+--          i~k
+--
+--
+--
+-- Z^   ->  Y     X^      do not hand i,T down
+-- i,T      i,E   i,T
+--
+-- @
 
 instance
   ( IndexHdr s x0 i0 us (TreeIxR p v a I) cs c is (TreeIxR p v a O)
@@ -574,24 +640,54 @@ instance
     where mk svS@(SvS s tt ii) =
             let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
             in  return $ case jj of
-                  E -> OIE F li svS
-                  F -> OIF   li  svS
-                  T -> OIT                         svS
+                  E -> OIEFF svS 0
+                  F -> OIFEF svS
+                  T -> OITET svS
           step OIFinis = return Done
-          -- left @E@
-          step (OIE E  _ _) = return Done
-          step (OIE tf l svS@(SvS s _ _)) | l<0 =
-            let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
-            in  return $ Skip $ OIE (succ tf) li svS
-          step (OIE tf l svS@(SvS s tt ii))
-            = do let l' = pardef frst l
-                 return $ Yield (SvS s (tt:.TreeIxR frst l tf) (ii:.:RiTirO l tf l tf)) (OIE tf l' svS)
-          step (OIF l svS) | l<0 = return Done
-          step (OIF l svS@(SvS s tt ii))
-            = do let l' = pardef frst l
-                     tf = if l==j then E else T
-                 return $ Yield (SvS s (tt:.TreeIxR frst l tf) (ii:.:RiTirO l tf l F)) (OIF l' svS)
-          step (OIT svS@(SvS s tt ii))
+          -- Z^   ->  Y     X^      ∀ i ;; for u,E collect all possible splits.
+          -- u,E      i,F   i,F     this is move complete forest down / inside
+          step (OIEFF svS@(SvS s tt ii) k) | j==u && k<=u
+            = return $ Yield (SvS s (tt:.TreeIxR frst k F) (ii:.:RiTirO k F k F)) (OIEFF svS (k+1))
+          step (OIEFF svS _)
+            = let pj = pardef frst j
+              in  return $ Skip $ OIETT svS pj
+          -- Z^   ->  Y     X^      further hand down
+          -- k,E      i,T   i,T
+          --          i_k
+          step (OIETT svS@(SvS s tt ii) pj) | j<u && pj>=0
+            = let pj' = pardef frst pj
+              in  return $ Yield (SvS s (tt:.TreeIxR frst pj T) (ii:.:RiTirO pj T pj T)) (OIETT svS pj')
+          step (OIETT svS _)
+            = let pu = pardef frst u
+              in  return $ Skip $ OIETF svS pu
+          -- Z^   ->  Y     X^
+          -- u,E      i,T   i,F     ∀ i ;; for all trees [i,u) !
+          --          i~u
+          step (OIETF svS@(SvS s tt ii) pu) | j==u && pu>=0
+            = let pu' = pardef frst pu
+              in  return $ Yield (SvS s (tt:.TreeIxR frst pu T) (ii:.:RiTirO pu T pu F)) (OIETF svS pu')
+          step (OIETF svS _)
+            = return $ Skip $ OIEEE svS
+          -- Z^   ->  Y     X^
+          -- i,E      i,E   i,E
+          step (OIEEE svS@(SvS s tt ii))
+            = return $ Yield (SvS s (tt:.TreeIxR frst j E) (ii:.:RiTirO j E j E)) OIFinis
+          -- Z^   ->  Y     X^       we do not split off the first tree; down is empty
+          -- i,F      i,E   i,F
+          step (OIFEF svS@(SvS s tt ii))
+            = let pj = pardef frst j
+              in  return $ Yield (SvS s (tt:.TreeIxR frst j E) (ii:.:RiTirO j E j F)) (OIFTF svS pj)
+          -- Z^   ->  Y     X^
+          -- k,F      i,T   i,F     ∀ i ;; for all trees [i,k) k/=u !
+          --          i~k
+          step (OIFTF svS@(SvS s tt ii) pj) | j<u && pj>=0
+            = let pj' = pardef frst pj
+              in  return $ Yield (SvS s (tt:.TreeIxR frst pj T) (ii:.:RiTirO pj T pj F)) (OIFTF svS pj')
+          step (OIFTF svS _)
+            = return $ Skip $ OIFinis
+          -- Z^   ->  Y     X^      do not hand i,T down
+          -- i,T      i,E   i,T
+          step (OITET svS@(SvS s tt ii))
             = return $ Yield (SvS s (tt:.TreeIxR frst j E) (ii:.:RiTirO j E j T)) OIFinis
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
