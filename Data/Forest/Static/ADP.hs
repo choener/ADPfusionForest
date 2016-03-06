@@ -745,12 +745,6 @@ instance
                     E -> OOE   svS minBound
                     F -> OOFFE svS
                     T -> OOTF  svS
-                    {-
-                    E -> OOE F svS
-                    F -> OOF   svS
-                    T -> OOT F svS
-                    -- _ -> OOFinis
-                    -}
           -- done
           step OOFinis = return Done
           -- Y^   ->  X^    Z
@@ -765,8 +759,6 @@ instance
             = return $ Yield (SvS s (tt:.TreeIxR frst j tf) (ii:.:RiTirO j tf j tf)) (OOE svS (succ tf))
           step (OOE svS@(SvS s tt ii) tf) | tf == maxBound
             = return $ Yield (SvS s (tt:.TreeIxR frst j tf) (ii:.:RiTirO j tf j tf)) OOFinis
---          step (OOE _ _)
---            = return $ Skip $ OOFinis
           -- Y^   ->  X^    Z       move complete forest down
           -- i,F      i,F   u,E
           step (OOFFE svS@(SvS s tt ii))
@@ -784,29 +776,6 @@ instance
           step (OOTT svS@(SvS s tt ii))
             = let k = rbdef u frst j
               in  return $ Yield (SvS s (tt:.TreeIxR frst j T) (ii:.:RiTirO k E j T)) OOFinis
-          {-
-          -- epsilon on left-hand side
-          step (OOE F svS@(SvS s tt ii))
-            = do let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
-                 return $ Yield (SvS s (tt:.TreeIxR frst lo F) (ii:.:RiTirO li F lo F)) (OOE T svS)
-          -- TODO do we need to check if j forms a proper tree?
-          step (OOE T svS@(SvS s tt ii))
-            = do let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
-                 return $ Yield (SvS s (tt:.TreeIxR frst lo T) (ii:.:RiTirO li T lo T)) OOFinis
-          -- forest on l.h.s.
-          step (OOF svS@(SvS s tt ii))
-            = do let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
-                 return $ Yield (SvS s (tt:.TreeIxR frst lo F) (ii:.:RiTirO u E lo tfo)) OOFinis
-          -- trees on l.h.s.
-          step (OOT F svS@(SvS s tt ii))
-            = do let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
-                     li'  = rbdef u frst li
-                     tfi' = if li' == u then E else F
-                 return $ Yield (SvS s (tt:.TreeIxR frst lo F) (ii:.:RiTirO li' tfi' lo tfo)) (OOE T svS)
-          step (OOT T svS@(SvS s tt ii))
-            = do let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
-                 return $ Yield (SvS s (tt:.TreeIxR frst lo T) (ii:.:RiTirO u E lo tfo)) OOFinis
-          -}
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
