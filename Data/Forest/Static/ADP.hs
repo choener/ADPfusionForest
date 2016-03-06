@@ -351,6 +351,8 @@ getrbound frst k
 
 trright frst k = rbdef (VG.length $ rsib frst) frst k
 
+-- | The next right sibling.
+
 rbdef d frst k = maybe d (\z -> if z<0 then d else z) $ rsib frst VG.!? k
 {-# Inline rbdef #-}
 
@@ -570,11 +572,7 @@ instance
 --
 -- @
 
--- | The different cases for @O@ context with @O@ tables.
-
-data OOEFT x = OOE TF x | OOF x | OOT TF x | OOFinis
-
-data OIEFT x -- = OIE TF Int x | OIF Int x | OIT x | OIFinis
+data OIEFT x
   = OIEFF x Int -- svS , forests starting at @i@
   | OIETT x Int -- svS , parent index for trees with right boundary @j@
   | OIETF x Int -- svS , parent index for trees with right boundary @u@
@@ -583,6 +581,15 @@ data OIEFT x -- = OIE TF Int x | OIF Int x | OIT x | OIFinis
   | OIFTF x Int -- svS , parent index for trees with right boundary @j@
   | OITET x     -- svS
   | OIFinis
+
+-- | The different cases for @O@ context with @O@ tables.
+
+data OOEFT x -- = OOE TF x | OOF x | OOT TF x | OOFinis
+  = OOE x TF  -- svS , all variants of T F E
+  | OOFFE x   -- svS
+  | OOTF  x   -- svS
+  | OOTT  x   -- svS
+  | OOFinis
 
 -- In principle, we are missing an extra boolean case on @j==u@ or @j==l,
 -- l/=u@ for tree-symbols, i.e. those that bind terminals. However, in
@@ -694,6 +701,34 @@ instance
   {-# Inline addIndexDenseGo #-}
 
 --synVar: @Table O@   with @Index O@
+--
+-- @
+--
+-- Y^   ->  X^    Z
+-- i,E      i,E   i,E
+--
+-- Y^   ->  X^    Z       we do not split off the first tree; down is empty
+-- i,E      i,F   i,F
+--
+-- Y^   ->  X^    Z       do not hand i,T down
+-- i,E      i,T   i,T
+--
+--
+--
+-- Y^   ->  X^    Z
+-- i,T      i,F   k,t     if k==u then E else F ; 1st tree split off
+-- i_k
+--
+-- Y^   ->  X^    Z       further hand down ; k,E because @T@
+-- i,T      i,T   k,E
+-- i_k
+--
+--
+--
+-- Y^   ->  X^    Z       move complete forest down
+-- i,F      i,F   u,E
+--
+-- @
 
 instance
   ( IndexHdr s x0 i0 us (TreeIxR p v a O) cs c is (TreeIxR p v a O)
@@ -707,12 +742,49 @@ instance
   addIndexDenseGo (cs:._) (vs:.ORightOf ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j jj)
     = flatten mk step . addIndexDenseGo cs vs us is
     where mk svS = return $ case jj of
+                    E -> OOE   svS minBound
+                    F -> OOFFE svS
+                    T -> OOTF  svS
+                    {-
                     E -> OOE F svS
                     F -> OOF   svS
                     T -> OOT F svS
                     -- _ -> OOFinis
+                    -}
           -- done
           step OOFinis = return Done
+          -- Y^   ->  X^    Z
+          -- i,E      i,E   i,E
+          --
+          -- Y^   ->  X^    Z       we do not split off the first tree; down is empty
+          -- i,E      i,F   i,F
+          --
+          -- Y^   ->  X^    Z       do not hand i,T down
+          -- i,E      i,T   i,T
+          step (OOE svS@(SvS s tt ii) tf) | tf < maxBound
+            = return $ Yield (SvS s (tt:.TreeIxR frst j tf) (ii:.:RiTirO j tf j tf)) (OOE svS (succ tf))
+          step (OOE svS@(SvS s tt ii) tf) | tf == maxBound
+            = return $ Yield (SvS s (tt:.TreeIxR frst j tf) (ii:.:RiTirO j tf j tf)) OOFinis
+--          step (OOE _ _)
+--            = return $ Skip $ OOFinis
+          -- Y^   ->  X^    Z       move complete forest down
+          -- i,F      i,F   u,E
+          step (OOFFE svS@(SvS s tt ii))
+            = return $ Yield (SvS s (tt:.TreeIxR frst j F) (ii:.:RiTirO u E j F)) OOFinis
+          -- Y^   ->  X^    Z
+          -- i,T      i,F   k,t     if k==u then E else F ; 1st tree split off
+          -- i_k
+          step (OOTF svS@(SvS s tt ii))
+            = let k = rbdef u frst j
+                  tf = if k==u then E else F
+              in  return $ Yield (SvS s (tt:.TreeIxR frst j F) (ii:.:RiTirO k tf j F)) (OOTT svS)
+          -- Y^   ->  X^    Z       further hand down ; k,E because @T@
+          -- i,T      i,T   k,E
+          -- i_k
+          step (OOTT svS@(SvS s tt ii))
+            = let k = rbdef u frst j
+              in  return $ Yield (SvS s (tt:.TreeIxR frst j T) (ii:.:RiTirO k E j T)) OOFinis
+          {-
           -- epsilon on left-hand side
           step (OOE F svS@(SvS s tt ii))
             = do let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
@@ -734,6 +806,7 @@ instance
           step (OOT T svS@(SvS s tt ii))
             = do let RiTirO li tfi lo tfo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
                  return $ Yield (SvS s (tt:.TreeIxR frst lo T) (ii:.:RiTirO u E lo tfo)) OOFinis
+          -}
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}

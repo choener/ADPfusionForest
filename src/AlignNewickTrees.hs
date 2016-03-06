@@ -189,6 +189,8 @@ t51 = "(b:1,c:1)a:1;"
 t52 = "b:2;c:2;"
 t61 = "((b,c)e,d)a;"
 t62 = "(b,(c,d)f)a;"
+t71 = "(b)a;"
+t72 = "(b)a;"
 
 testalignS t1' t2' = do
   let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
