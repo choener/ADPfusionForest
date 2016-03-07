@@ -305,7 +305,10 @@ runAlignIO fw svgProb t1' t2' = do
                 , (maybe "-" label $ F.label t2 VG.!? k2)
                 )) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T,k1,k2) | k1 <- [lb1 .. ub1 - 1], k2 <- [lb2 .. ub2 - 1] ]
   --
-  gridFile svgProb fw ub1 ub2 [] [] $ map (\(k1,k2,sc,_,_) -> sc) ps
+  let gsc = map (\(k1,k2,sc,l1,l2) -> sc) ps
+  let gl1 = map (\k1 -> Text.unpack $ (maybe "-" label $ F.label t1 VG.!? k1)) [lb1 .. ub1 - 1]
+  let gl2 = map (\k2 -> Text.unpack $ (maybe "-" label $ F.label t2 VG.!? k2)) [lb2 .. ub2 - 1]
+  gridFile svgProb fw ub1 ub2 gl1 gl2 gsc
   --
   --printf "%30s %10s %10s %10s\n" ("index"::String) ("i-F"::String) ("i-M"::String) ("i-T"::String)
   --mapM_ (\(k,v) -> printf "%30s %10.5f %10.5f %10.5f\n" (show k) (exp $ ln v) (exp $ ln $ imt ! k) (exp $ ln $ itt ! k)) $ assocs ift
