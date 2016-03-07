@@ -18,6 +18,7 @@ import Data.Ord (comparing)
 import System.Console.CmdArgs
 import System.Exit (exitFailure)
 import System.FilePath
+import Data.Char (toLower)
 
 import ADP.Fusion
 import Data.PrimitiveArray as PA hiding (map)
@@ -241,17 +242,21 @@ testalignIO t1' t2' = do
   --mapM_ print $ sortBy (comparing fst) ixs'
   --print $ size buL buU
 
+data PFT = SVG | EPS
+  deriving (Show,Data,Typeable)
 
 data Options = Options
   { inputFiles  :: [String]
-  , svgProb     :: String
+  , probFile    :: String
+  , probFileTy  :: PFT
   , linearScale :: Bool
   }
   deriving (Show,Data,Typeable)
 
 oOptions = Options
   { inputFiles  = def &= args
-  , svgProb     = def &= help "probability file prefix"
+  , probFile    = def &= help "probability file prefix"
+  , probFileTy  = EPS &= help "svg, eps"
   , linearScale = False &= help "use linear, not logarithmic scaling"
   }
 
@@ -269,8 +274,8 @@ main = do
       f1 <- readFile n1
       f2 <- readFile n2
       runAlignS f1 f2
-      unless (null svgProb) $ do
-        runAlignIO (if linearScale then FWlinear else FWlog) (svgProb ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ ".svg") f1 f2
+      unless (null probFile) $ do
+        runAlignIO (if linearScale then FWlinear else FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2
 
 
 
@@ -286,7 +291,7 @@ runAlignS t1' t2' = do
     putStrLn ""
     forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
 
-runAlignIO fw svgProb t1' t2' = do
+runAlignIO fw probFileTy probFile t1' t2' = do
   let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
       t1 = f $ Text.pack t1'
       t2 = f $ Text.pack t2'
@@ -306,9 +311,13 @@ runAlignIO fw svgProb t1' t2' = do
                 )) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T,k1,k2) | k1 <- [lb1 .. ub1 - 1], k2 <- [lb2 .. ub2 - 1] ]
   --
   let gsc = map (\(k1,k2,sc,l1,l2) -> sc) ps
-  let gl1 = map (\k1 -> Text.unpack $ (maybe "-" label $ F.label t1 VG.!? k1)) [lb1 .. ub1 - 1]
-  let gl2 = map (\k2 -> Text.unpack $ (maybe "-" label $ F.label t2 VG.!? k2)) [lb2 .. ub2 - 1]
-  gridFile svgProb fw ub1 ub2 gl1 gl2 gsc
+  let fillText [] = " "
+      fillText xs = xs
+  let gl1 = map (\k1 -> fillText . Text.unpack $ (maybe "-" label $ F.label t1 VG.!? k1)) [lb1 .. ub1 - 1]
+  let gl2 = map (\k2 -> fillText . Text.unpack $ (maybe "-" label $ F.label t2 VG.!? k2)) [lb2 .. ub2 - 1]
+  case probFileTy of
+         SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
+         EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
   --
   --printf "%30s %10s %10s %10s\n" ("index"::String) ("i-F"::String) ("i-M"::String) ("i-T"::String)
   --mapM_ (\(k,v) -> printf "%30s %10.5f %10.5f %10.5f\n" (show k) (exp $ ln v) (exp $ ln $ imt ! k) (exp $ ln $ itt ! k)) $ assocs ift
