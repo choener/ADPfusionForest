@@ -24,6 +24,8 @@ packages:
   extra-dep: true
 - location: ../Lib-GrammarProducts/
   extra-dep: true
+- location: ../Lib-PrimitiveArray-Pretty/
+  extra-dep: true
 
 extra-deps:
 - cereal-text-0.1.0.1

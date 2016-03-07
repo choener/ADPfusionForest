@@ -4,17 +4,20 @@ module Main where
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector as V
 import qualified Data.Vector.Generic as VG
-import Control.Monad(forM_)
+import Control.Monad(forM_, unless)
 import Data.Vector.Fusion.Util
 import qualified Data.Tree as T
 import Debug.Trace
-import Data.List (nub)
+import Data.List (nub, tails)
 import Text.Printf
 import Unsafe.Coerce
 import qualified Data.Text as Text
 import Numeric.Log
 import Data.List (sortBy)
 import Data.Ord (comparing)
+import System.Console.CmdArgs
+import System.Exit (exitFailure)
+import System.FilePath
 
 import ADP.Fusion
 import Data.PrimitiveArray as PA hiding (map)
@@ -22,6 +25,7 @@ import FormalLanguage.CFG
 import Data.Forest.Static (TreeOrder(..),Forest)
 import qualified Data.Forest.Static as F
 import Biobase.Newick
+import Data.PrimitiveArray.Pretty.InOut
 
 import Data.Forest.Static.ADP
 import Data.Forest.Static.Node
@@ -56,7 +60,7 @@ resig :: Monad m => SigGlobal m a b c d -> SigLabolg m a b c d
 resig (SigGlobal gdo git gal gin gde gh) = SigLabolg gdo git gal gin gde gh
 {-# Inline resig #-}
 
-score :: Monad m => SigGlobal m Double Double Info Info
+score :: Monad m => SigGlobal m Int Int Info Info
 score = SigGlobal
   { gDone  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
   , gIter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t+f
@@ -96,7 +100,7 @@ type Trix = TreeIxR Pre V.Vector Info I
 type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
 type Frst = Forest Pre V.Vector Info
 
-runForward :: Frst -> Frst -> Z:.Tbl Double:.Tbl Double:.Tbl Double
+runForward :: Frst -> Frst -> Z:.Tbl Int :.Tbl Int:.Tbl Int
 runForward f1 f2 = mutateTablesDefault $
                    gGlobal score
                    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
@@ -238,6 +242,84 @@ testalignIO t1' t2' = do
   --print $ size buL buU
 
 
-main :: IO ()
-main = return ()
+data Options = Options
+  { inputFiles  :: [String]
+  , svgProb     :: String
+  , linearScale :: Bool
+  }
+  deriving (Show,Data,Typeable)
 
+oOptions = Options
+  { inputFiles  = def &= args
+  , svgProb     = def &= help "probability file prefix"
+  , linearScale = False &= help "use linear, not logarithmic scaling"
+  }
+
+main :: IO ()
+main = do
+  o@Options{..} <- cmdArgs oOptions
+  unless (length inputFiles >= 2) $ do
+    putStrLn "give at least two Newick files on the command line"
+    exitFailure
+  let ts = init $ init $ tails inputFiles
+  forM_ ts $ \(n1:hs) -> do
+    forM_ hs $ \n2 -> do
+      putStrLn n1
+      putStrLn n2
+      f1 <- readFile n1
+      f2 <- readFile n2
+      runAlignS f1 f2
+      unless (null svgProb) $ do
+        runAlignIO (if linearScale then FWlinear else FWlog) (svgProb ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ ".svg") f1 f2
+
+
+
+runAlignS t1' t2' = do
+  let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
+      t1 = f $ Text.pack t1'
+      t2 = f $ Text.pack t2'
+  let (fwd,sc,bt') = runS t1 t2
+  let (Z:.ITbl _ _ _ ift _ :. ITbl _ _ _ imt _ :. ITbl _ _ _ itt _) = fwd
+  let bt = nub bt'
+  printf "Score: %10d\n" sc
+  forM_ bt $ \b -> do
+    putStrLn ""
+    forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
+
+runAlignIO fw svgProb t1' t2' = do
+  let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
+      t1 = f $ Text.pack t1'
+      t2 = f $ Text.pack t2'
+  let (inn,out,_) = runIO t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (Z:.ITbl _ _ _ ift _ :. ITbl _ _ _ imt _ :. ITbl _ _ _ itt _) = inn
+  let (Z:.ITbl _ _ _ oft _ :. ITbl _ _ _ omt _ :. ITbl _ _ _ ott _) = out
+  let (Z:.(TreeIxR frst1 lb1 _):.(TreeIxR frst2 lb2 _), Z:.(TreeIxR _ ub1 _):.(TreeIxR _ ub2 _)) = bounds oft
+  let ix = (Z:.TreeIxR frst1 lb1 F:.TreeIxR frst2 lb2 F)
+  let sc = ift ! ix
+  let ps = map (\(k,k1,k2) ->
+            let k' = unsafeCoerce k
+            in  ( k1
+                , k2
+                , ((imt!k) * (omt!k') / sc)
+                , (maybe "-" label $ F.label t1 VG.!? k1)
+                , (maybe "-" label $ F.label t2 VG.!? k2)
+                )) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T,k1,k2) | k1 <- [lb1 .. ub1 - 1], k2 <- [lb2 .. ub2 - 1] ]
+  --
+  gridFile svgProb fw ub1 ub2 [] [] $ map (\(k1,k2,sc,_,_) -> sc) ps
+  --
+  --printf "%30s %10s %10s %10s\n" ("index"::String) ("i-F"::String) ("i-M"::String) ("i-T"::String)
+  --mapM_ (\(k,v) -> printf "%30s %10.5f %10.5f %10.5f\n" (show k) (exp $ ln v) (exp $ ln $ imt ! k) (exp $ ln $ itt ! k)) $ assocs ift
+  --putStrLn ""
+  --printf "%30s %10.8f\n" (show ix) (exp $ ln sc)
+  --putStrLn ""
+  ----
+  --printf "%30s %10s %10s %10s\n" ("index"::String) ("o-F"::String) ("o-M"::String) ("o-T"::String)
+  --mapM_ (\(k,v) -> printf "%30s %10.5f %10.5f %10.5f\n" (show k) (exp $ ln v) (exp $ ln $ omt ! k) (exp $ ln $ ott ! k)) $ assocs oft
+  --putStrLn ""
+  --printf "%30s %10s %10s %10s %6s %6s\n" ("index"::String) ("i-M"::String) ("o-M"::String) ("i*o / sc"::String) ("lbl 1" :: String) ("lbl 2" :: String)
+  --mapM_ (\(k,k1,k2) -> let k' = unsafeCoerce k
+  --                     in  printf "%30s %10.7f %10.7f %10.7f %6s %6s\n"
+  --                                      (show k)
+  --                                      (exp $ ln $ imt ! k) (exp $ ln $ omt ! k') (exp $ ln $ (imt!k) * (omt!k') / sc)
+  --                                      (maybe "-" label $ F.label t1 VG.!? k1) (maybe "-" label $ F.label t2 VG.!? k2)
+  --      ) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T,k1,k2) | k1 <- [lb1 .. ub1], k2 <- [lb2 .. ub2] ]

@@ -14,7 +14,7 @@ import           Prelude hiding (map)
 import           Debug.Trace
 import           Data.Strict.Tuple hiding (fst, snd)
 import qualified Data.Forest.Static as F
-import Biobase.Newick
+--import Biobase.Newick
 
 import           Data.Forest.Static
 import           Data.Forest.Static.Node
@@ -214,8 +214,8 @@ instance
 instance
   ( IndexHdr s x0 i0 us (TreeIxL p v a I) cs c is (TreeIxL p v a I)
   , MinSize c
-  , Show a, VG.Vector v a -- TEMP!
-  , a ~ Info
+--  , Show a, VG.Vector v a -- TEMP!
+--  , a ~ Info
   ) => AddIndexDense s (us:.TreeIxL p v a I) (cs:.c) (is:.TreeIxL p v a I) where
   addIndexDenseGo (cs:._) (vs:.IStatic ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
     = map go . addIndexDenseGo cs vs us is

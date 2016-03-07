@@ -42,16 +42,18 @@ library
                , containers             >= 0.5      &&  < 0.6
                , fgl                    >= 5.5      &&  < 5.6
                , ForestStructures       >= 0.0.0.1  &&  < 0.0.1.0
+               , GrammarProducts        >= 0.1      &&  < 0.2
                , PrimitiveArray         >= 0.7.0    &&  < 0.7.1
+               , strict                 >= 0.3      &&  < 0.4
+               , text                   >= 1.2      &&  < 1.3
                , unordered-containers   >= 0.2      &&  < 0.3
                , vector                 >= 0.10     &&  < 0.12
                , vector-th-unbox        >= 0.2      &&  < 0.3
-               , strict                 >= 0.3      &&  < 0.4
-               , text                   >= 1.2      &&  < 1.3
-               , GrammarProducts        >= 0.1      &&  < 0.2
 
   exposed-modules:
     Data.Forest.Static.ADP
+    Data.Forest.Static.Left
+    Data.Forest.Static.Node
   default-language:
     Haskell2010
   default-extensions: BangPatterns
@@ -60,16 +62,16 @@ library
                     , FlexibleContexts
                     , FlexibleInstances
                     , GADTs
+                    , GADTs
                     , KindSignatures
+                    , MultiParamTypeClasses
                     , OverloadedStrings
                     , RankNTypes
+                    , ScopedTypeVariables
                     , StandaloneDeriving
                     , TypeFamilies
                     , TypeOperators
                     , UndecidableInstances
-                    , GADTs
-                    , MultiParamTypeClasses
-                    , ScopedTypeVariables
   ghc-options:
     -O2
     -funbox-strict-fields
@@ -80,16 +82,20 @@ executable AlignNewickTrees
   if flag(examples)
     buildable:
       True
-    build-depends:  base
-                 ,  ADPfusion
-                 ,  ADPfusionForest
-                 ,  BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
-                 ,  containers
-                 ,  ForestStructures
-                 ,  FormalGrammars         >= 0.3      &&  < 0.4
-                 ,  PrimitiveArray
-                 ,  vector
-                 , log-domain             >= 0.10   &&  < 0.11
+    build-depends: base
+                 , ADPfusion
+                 , ADPfusionForest
+                 , BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
+                 , cmdargs                >= 0.10     &&  < 0.11
+                 , containers
+                 , filepath
+                 , ForestStructures
+                 , FormalGrammars         >= 0.3      &&  < 0.4
+                 , log-domain             >= 0.10     &&  < 0.11
+                 , PrimitiveArray
+                 , PrimitiveArray-Pretty  >= 0.0      &&  < 0.1
+                 , text
+                 , vector
   else
     buildable:
       False
@@ -101,16 +107,18 @@ executable AlignNewickTrees
     Haskell2010
   default-extensions: BangPatterns
                     , DataKinds
+                    , DeriveDataTypeable
                     , FlexibleContexts
                     , GADTs
                     , MultiParamTypeClasses
                     , OverloadedStrings
                     , QuasiQuotes
+                    , RecordWildCards
                     , TemplateHaskell
                     , TypeFamilies
                     , TypeOperators
   ghc-options:
-    -O2
+    -O0
     -funbox-strict-fields
 
 

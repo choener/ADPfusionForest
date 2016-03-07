@@ -18,7 +18,7 @@ import           Prelude hiding (map)
 import           Debug.Trace
 import           Data.Strict.Tuple hiding (fst, snd)
 import qualified Data.Forest.Static as F
-import Biobase.Newick
+--import Biobase.Newick
 import Control.Exception (assert)
 
 import           Data.Forest.Static
@@ -285,8 +285,8 @@ data TFsize s
 instance
   ( IndexHdr s x0 i0 us (TreeIxR p v a I) cs c is (TreeIxR p v a I)
   , MinSize c
-  , Show a, VG.Vector v a -- TEMP!
-  , a ~ Info
+--  , Show a, VG.Vector v a -- TEMP!
+--  , a ~ Info
   ) => AddIndexDense s (us:.TreeIxR p v a I) (cs:.c) (is:.TreeIxR p v a I) where
   addIndexDenseGo (cs:._) (vs:.IStatic ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j _)
     = map go . addIndexDenseGo cs vs us is
@@ -294,7 +294,8 @@ instance
       go (SvS s tt ii) =
         let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
             tf'         = if l==u then E else tf
-        in tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $ SvS s (tt:.TreeIxR frst l tf') (ii:.:RiTirI u E)
+        in -- tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $
+            SvS s (tt:.TreeIxR frst l tf') (ii:.:RiTirI u E)
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j jj)
     = flatten mk step . addIndexDenseGo cs vs us is
     where mk svS = return $ EpsFull jj svS
@@ -304,31 +305,31 @@ instance
           -- _ -> TF , for forests: with T having size ε, F having full size
           step (EpsFull F svS@(SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                 tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst k E) (ii:.:RiTirI k F)) (FullEpsFF svS)  -- @k Epsilon / full@
+                 --tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
+                 return $ Yield (SvS s (tt:.TreeIxR frst k E) (ii:.:RiTirI k F)) (FullEpsFF svS)  -- @k Epsilon / full@
           -- _ -> TF, for forests: with T having full size, F having size ε
           step (FullEpsFF svS@(SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                 tSI (glb) ('W',u,k,T,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst k F) (ii:.:RiTirI u E)) (OneRemFT svS)   -- @full / u Epsilon@
+                 --tSI (glb) ('W',u,k,T,'.',distance $ F.label frst VG.! 0) .
+                 return $ Yield (SvS s (tt:.TreeIxR frst k F) (ii:.:RiTirI u E)) (OneRemFT svS)   -- @full / u Epsilon@
           -- _ -> TF for forests: with T having size 1, F having full - 1 size
           step (OneRemFT (SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      l         = rbdef u frst k
                      ltf       = if l==u then E else F
-                 tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l ltf)) Finis -- @1 / l ltf@
+                 --tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
+                 return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l ltf)) Finis -- @1 / l ltf@
           -- _ -> TF , for trees: with T having size ε, F having size 1 (or T)
           step (EpsFull T svS@(SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                 tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst k E) (ii:.:RiTirI k T)) (OneEpsTT svS)
+                 --tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
+                 return $ Yield (SvS s (tt:.TreeIxR frst k E) (ii:.:RiTirI k T)) (OneEpsTT svS)
           -- _ -> TF, for trees: with T having size 1, F having size ε
           step (OneEpsTT (SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      l         = rbdef u frst k
-                 tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
-                   return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l E)) Finis
+                 --tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
+                 return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l E)) Finis
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
