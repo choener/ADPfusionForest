@@ -76,9 +76,9 @@ part :: Monad m => Log Double -> Log Double -> Log Double -> Log Double -> SigGl
 part matchSc mismatchSc indelSc temp = SigGlobal
   { gDone  = \ (Z:.():.()) -> 1
   , gIter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t * f
-  , gAlign = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f * if label a == label b then matchSc * temp else mismatchSc * temp
-  , gIndel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f * temp * indelSc
-  , gDelin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f * temp * indelSc
+  , gAlign = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f * if label a == label b then matchSc else mismatchSc
+  , gIndel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f * indelSc --exp(-indelSc/temp)
+  , gDelin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f * indelSc --exp(-indelSc/temp)
   , gH     = SM.foldl' (+) 0.0000001
   }
 {-# Inline part #-}
@@ -261,12 +261,12 @@ data Options = Options
 oOptions = Options
   { inputFiles  = def &= args
   , probFile    = def &= help "probability file prefix" -- &= explicit &= name "probfile" &= name "p" --to not guessing names 
-  , probFileTy  = EPS &= help "svg, eps"
-  , linearScale = False &= help "use linear, not logarithmic scaling"
-  , matchSc     = 10   &= help "score for match cases, positive number"
-  , notmatchSc  = -30 &= help "score for mismatches, negative number"
-  , delinSc     = -10 &= help "score for deletions and insertions, negative number"
-  , temperature = 0.1 &= help "'temperature', strict (0.001) to less strict (0.99)"
+  , probFileTy  = EPS &= help "svg, eps; def=eps"
+  , linearScale = False &= help "use linear, not logarithmic scaling; def=false"
+  , matchSc     = 10  &= help "score for match cases, positive number; def=10"
+  , notmatchSc  = -30 &= help "score for mismatches, negative number; def=-30"
+  , delinSc     = -10 &= help "score for deletions and insertions, negative number; def=-10"
+  , temperature = 0.1 &= help "'temperature', strict (0.001) to less strict (0.99); def=0.1"
   }
 
 main :: IO ()
@@ -276,7 +276,7 @@ main = do
     putStrLn "give at least two Newick files on the command line"
     exitFailure
   let ts = init $ init $ tails inputFiles
-      f  = Exp . log 
+      f z = Exp $ z/temperature 
   forM_ ts $ \(n1:hs) -> do
     forM_ hs $ \n2 -> do
       putStrLn n1
@@ -285,7 +285,7 @@ main = do
       f2 <- readFile n2
       runAlignS f1 f2 (round matchSc) (round notmatchSc) (round delinSc)
       unless (null probFile) $ do
-        runAlignIO (if linearScale then FWlinear else FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (f matchSc) (f notmatchSc) (f delinSc) (f temperature)
+        runAlignIO (if linearScale then FWlinear else FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (f matchSc) (f notmatchSc) (f delinSc) (Exp temperature)
 
 
 

@@ -4,11 +4,11 @@ module Main where
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector as V
 import qualified Data.Vector.Generic as VG
-import Control.Monad(forM_)
+import Control.Monad(forM_,unless)
 import Data.Vector.Fusion.Util
 import qualified Data.Tree as T
 import Debug.Trace
-import Data.List (nub)
+import Data.List (nub,tails)
 
 import Text.Printf
 import Unsafe.Coerce
@@ -41,6 +41,7 @@ N: F -- forest
 N: Z -- tree for gaps
 N: Q -- sibling gap mode
 N: R -- parent gap mode
+N: E
 T: n
 S: [F,F]
 [F,F] -> iter    <<< [T,T] [F,F]
@@ -49,15 +50,16 @@ S: [F,F]
 [Z,T] -> indel   <<< [-,n] [R,R]
 [T,Z] -> delin   <<< [n,-] [R,R]
 [T,T] -> align   <<< [n,n] [F,F]
-[F,F] -> done    <<< [e,e]
-[R,R] -> done    <<< [e,e]
+[F,F] -> done    <<< [E,E]
+[R,R] -> done    <<< [E,E]
 [R,R] -> pgap <<< [T,T] [R,R]
 [R,R] -> pgap <<< [T,Z] [R,R]
 [R,R] -> pgap <<< [Z,T] [R,R]
-[Q,Q] -> done    <<< [e,e]
+[Q,Q] -> done    <<< [E,E]
 [Q,Q] -> siter <<< [T,T] [F,F]
 [Q,Q] -> sgap <<< [T,Z] [Q,Q]
 [Q,Q] -> sgap <<< [Z,T] [Q,Q]
+[E,E] -> finalDone <<< [e,e]
 //
 Outside: Labolg
 Source: Global
@@ -70,36 +72,38 @@ Emit: Labolg
 makeAlgebraProduct ''SigGlobal
 
 resig :: Monad m => SigGlobal m a b c d -> SigLabolg m a b c d
-resig (SigGlobal gdo git gsi gal gin gde gfg gpg gsg gh) = SigLabolg gdo git gsi gal gin gde gfg gpg gsg gh
+resig (SigGlobal gdo git gsi gal gin gde gfg gpg gsg gfi gh) = SigLabolg gdo git gsi gal gin gde gfg gpg gsg gfi gh
 {-# Inline resig #-}
 
 
 score :: Monad m => Int -> Int -> Int -> Int -> SigGlobal m Int Int Info Info
 score matchSc notmatchSc delinSc affinSc = SigGlobal -- match affine deletion 
-  { gDone  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
+  { gDone  = \ f -> f --  (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
+  , gFinalDone  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
   , gIter  = \ t f -> t+f
   , gSiter  = \ t f -> t+f
   , gAlign = \ (Z:.c:.b) f -> tSI glb ("ALIGN",f,c,b) $ f + if label c == label b then matchSc else notmatchSc
   , gIndel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f
   , gDelin = \ (Z:.c:.()) f -> tSI glb ("DELIN",f,c) $ f
-  , gFgap = \ t f -> tSI glb ("gap",f+t,d) $ t + f + delinSc --gap open
-  , gPgap = \ t f -> tSI glb ("gap",f+t,a) $ t + f + affinSc --gap extension
-  , gSgap = \ t f -> tSI glb ("gap",f+t,a) $ t + f + affinSc --gap extension
+  , gFgap = \ t f -> tSI glb ("gap",f+t,delinSc) $ t + f + delinSc --gap open
+  , gPgap = \ t f -> tSI glb ("gap",f+t,affinSc) $ t + f + affinSc --gap extension
+  , gSgap = \ t f -> tSI glb ("gap",f+t,affinSc) $ t + f + affinSc --gap extension
   , gH     = SM.foldl' max (-88888)
   }
 {-# Inline score #-}
 
 part :: Monad m => Log Double -> Log Double -> Log Double -> Log Double -> Log Double -> SigGlobal m (Log Double) (Log Double) Info Info
 part matchSc mismatchSc delinSc affinSc temp = SigGlobal
-  { gDone  = \ (Z:.():.()) -> 1
+  { gDone  = \ f -> f -- (Z:.():.()) -> 1
   , gIter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t * f
+  , gFinalDone  = \ (Z:.():.()) -> 1
   , gSiter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t * f
-  , gAlign = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f * if label a == label b then matchSc * temp else mismatchSc * temp
+  , gAlign = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f * if label a == label b then matchSc else mismatchSc
   , gIndel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f
   , gDelin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f
-  , gFgap = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f * temp * delinSc
-  , gPgap = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f * temp * affinSc
-  , gSgap = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f * temp * affinSc
+  , gFgap = \ t f -> t * f * delinSc
+  , gPgap = \ t f -> t * f * affinSc
+  , gSgap = \ t f -> t * f * affinSc
   , gH     = SM.foldl' (+) 0.0000001
   }
 {-# Inline part #-}
@@ -109,7 +113,8 @@ part matchSc mismatchSc delinSc affinSc temp = SigGlobal
 type Pretty' = [[T.Tree (Info,Info)]]
 pretty' :: Monad m => SigGlobal m [T.Tree (Info,Info)] [[T.Tree ((Info,Info))]] Info Info
 pretty' = SigGlobal
-  { gDone  = \ (Z:.():.()) -> []
+  { gDone  = \ f -> f -- (Z:.():.()) -> []
+  , gFinalDone  = \ (Z:.():.()) -> []
   , gIter  = \ t f -> t++f
   , gSiter  = \ t f -> t++f
   , gAlign = \ (Z:.a:.b) f -> [T.Node (a,b) f]
@@ -129,8 +134,8 @@ type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
 type Frst = Forest Pre V.Vector Info
 
 
---inside part
-runForward :: Frst -> Frst -> Int -> Int -> Int -> Int -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int
+--likelihood part
+runForward :: Frst -> Frst -> Int -> Int -> Int -> Int -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int
 runForward f1 f2 matchSc notmatchSc delinSc affinSc = let
                          in
                            mutateTablesDefault $
@@ -141,16 +146,35 @@ runForward f1 f2 matchSc notmatchSc delinSc affinSc = let
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+                           (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (node $ F.label f1)
                            (node $ F.label f2)
+
+
+--inside part
+runInside :: Frst -> Frst -> Log Double -> Log Double -> Log Double -> Log Double -> Log Double -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double)
+runInside f1 f2 matchSc notmatchSc delinSc affinSc temperature = let
+                         in
+                           mutateTablesDefault $
+                           gGlobal (part matchSc notmatchSc delinSc affinSc temperature) -- costs
+                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
+                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
+                           (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
+                           (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
+                           (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
+                           (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
+                           (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
+                           (node $ F.label f1)
+                           (node $ F.label f2)
+
 
 -- outside part
 type Trox = TreeIxR Pre V.Vector Info O
 type OTbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trox:.Trox) x
 
 
-runOutside :: Frst -> Frst -> Log Double -> Log Double -> Log Double -> Log Double -> Log Double -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double) -> Z:.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double)
-runOutside f1 f2 matchSc mismatchSc indelSc affinSc temperature (Z:.iF:.iM:.iT)
+runOutside :: Frst -> Frst -> Log Double -> Log Double -> Log Double -> Log Double -> Log Double -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double) -> Z:.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double)
+runOutside f1 f2 matchSc mismatchSc indelSc affinSc temperature (Z:.iE:.iF:.iQ:.iR:.iT:.iS:.iZ)
   = mutateTablesDefault $
     gLabolg (resig (part matchSc mismatchSc indelSc affinSc temperature))
     (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
@@ -159,9 +183,13 @@ runOutside f1 f2 matchSc mismatchSc indelSc affinSc temperature (Z:.iF:.iM:.iT)
     (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
     (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
     (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
+    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
     iF
-    iM
+    iQ
+    iR
     iT
+    iS
+    iZ
     (node $ F.label f1)
     (node $ F.label f2)
 {-# NoInline runOutside #-}
@@ -169,10 +197,10 @@ runOutside f1 f2 matchSc mismatchSc indelSc affinSc temperature (Z:.iF:.iM:.iT)
 
 
 -- inside part
-run :: Frst -> Frst -> Int -> Int -> Int -> Int -> (Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int,Int,Pretty')
+run :: Frst -> Frst -> Int -> Int -> Int -> Int -> (Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int,Int,Pretty')
 run f1 f2 matchSc notmatchSc delinSc affinSc = (fwd,unId $ axiom a1, unId $ axiom b1)
-  where fwd@(Z:.a1:.a2:.a3:.a4:.a5:.a6) = runForward f1 f2 m a d
-        Z:.b1:.b2:.b3:.b4:.b5:.b6 
+  where fwd@(Z:.a1:.a2:.a3:.a4:.a5:.a6:.a7) = runForward f1 f2 matchSc notmatchSc delinSc affinSc
+        Z:.b1:.b2:.b3:.b4:.b5:.b6:.b7 
                     = gGlobal ((score matchSc notmatchSc delinSc affinSc) <|| pretty') 
                     (toBacktrack a1 (undefined :: Id a -> Id a)) 
                     (toBacktrack a2 (undefined :: Id a -> Id a))  
@@ -180,14 +208,15 @@ run f1 f2 matchSc notmatchSc delinSc affinSc = (fwd,unId $ axiom a1, unId $ axio
                     (toBacktrack a4 (undefined :: Id a -> Id a))  
                     (toBacktrack a5 (undefined :: Id a -> Id a))  
                     (toBacktrack a6 (undefined :: Id a -> Id a))  
+                    (toBacktrack a7 (undefined :: Id a -> Id a))  
                     (node $ F.label f1) (node $ F.label f2)
 
 
 -- outside part
 
 runIO f1 f2 matchSc mismatchSc indelSc affinSc temperature = (fwd,out,unId $ axiom f)
-  where fwd@(Z:.f:.m:.t) = runInside f1 f2 matchSc mismatchSc indelSc affinSc temperature
-        out@(Z:.oft:.omt:.ott) = runOutside f1 f2 matchSc mismatchSc indelSc affinSc temperature fwd
+  where fwd@(Z:.e:.f:.q:.r:.t:.s:.z) = runInside f1 f2 matchSc mismatchSc indelSc affinSc temperature
+        out@(Z:.oet:.oft:.oqt:.ort:.ott:.ost:.ozt) = runOutside f1 f2 matchSc mismatchSc indelSc affinSc temperature fwd
 
 
 --         a            a
@@ -259,13 +288,13 @@ data Options = Options
 oOptions = Options
   { inputFiles  = def &= args
   , probFile    = def &= help "probability file prefix" -- &= explicit &= name "probfile" &= name "p" --to not guessing names 
-  , probFileTy  = EPS &= help "svg, eps"
-  , linearScale = False &= help "use linear, not logarithmic scaling"
-  , matchSc     = 10   &= help "score for match cases, positive number"
-  , notmatchSc  = -30 &= help "score for mismatches, negative number"
-  , delinSc     = -10 &= help "score for deletions and insertions, negative number"
-  , affinSc     = -1 &= help "score for affine gap costs, negative number"
-  , temperature = 0.1 &= help "'temperature', strict (0.001) to less strict (0.99)"
+  , probFileTy  = EPS &= help "svg, eps; def=eps "
+  , linearScale = False &= help "use linear, not logarithmic scaling; def=false"
+  , matchSc     = 10   &= help "score for match cases, positive number; def=10"
+  , notmatchSc  = -30 &= help "score for mismatches, negative number; def=-30"
+  , delinSc     = -10 &= help "score for deletions and insertions, negative number; def=-10"
+  , affinSc     = -1 &= help "score for affine gap costs, negative number; def=-1"
+  , temperature = 0.1 &= help "'temperature', strict (0.001) to less strict (0.99); def=0.1"
   }
 
 main :: IO ()
@@ -275,7 +304,7 @@ main = do
     putStrLn "give at least two Newick files on the command line"
     exitFailure
   let ts = init $ init $ tails inputFiles
-      f  = Exp . log 
+      f z = Exp $ z/temperature 
   forM_ ts $ \(n1:hs) -> do
     forM_ hs $ \n2 -> do
       putStrLn n1
@@ -284,7 +313,7 @@ main = do
       f2 <- readFile n2
       runAlignS f1 f2 (round matchSc) (round notmatchSc) (round delinSc) (round affinSc)
       unless (null probFile) $ do
-        runAlignIO (if linearScale then FWlinear else FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (f matchSc) (f notmatchSc) (f delinSc) (f affinSc) (f temperature)
+        runAlignIO (if linearScale then FWlinear else FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (f matchSc) (f notmatchSc) (f delinSc) (f affinSc) (Exp temperature)
 
 
 
@@ -294,7 +323,7 @@ runAlignS t1' t2' matchSc notmatchSc delinSc affinSc = do
       t1 = f $ Text.pack t1'
       t2 = f $ Text.pack t2'
   let (fwd,sc,bt') = run t1 t2 matchSc notmatchSc delinSc affinSc
-  let (Z:.ITbl _ _ _ ift _ :. ITbl _ _ _ imt _ :. ITbl _ _ _ itt _) = fwd
+  let (Z:.ITbl _ _ _ iet _ :.ITbl _ _ _ ift _ :. ITbl _ _ _ iqt _ :. ITbl _ _ _ irt _ :. ITbl _ _ _ itt _ :. ITbl _ _ _ ist _ :. ITbl _ _ _ izt _) = fwd
   let bt = nub bt'
   printf "Score: %10d\n" sc
   forM_ bt $ \b -> do
@@ -306,8 +335,8 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc affinSc tem
       t1 = f $ Text.pack t1'
       t2 = f $ Text.pack t2'
   let (inn,out,_) = runIO t1 t2 matchSc mismatchSc indelSc affinSc temperature -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
-  let (Z:.ITbl _ _ _ ift _ :. ITbl _ _ _ imt _ :. ITbl _ _ _ itt _) = inn
-  let (Z:.ITbl _ _ _ oft _ :. ITbl _ _ _ omt _ :. ITbl _ _ _ ott _) = out
+  let (Z:.ITbl _ _ _ iet _ :.ITbl _ _ _ ift _ :. ITbl _ _ _ iqt _ :. ITbl _ _ _ irt _ :. ITbl _ _ _ itt _ :. ITbl _ _ _ ist _ :. ITbl _ _ _ izt _) = inn
+  let (Z:.ITbl _ _ _ iet _ :.ITbl _ _ _ oft _ :. ITbl _ _ _ oqt _ :. ITbl _ _ _ ort _ :. ITbl _ _ _ ott _ :. ITbl _ _ _ ost _ :. ITbl _ _ _ ozt _) = out
   let (Z:.(TreeIxR frst1 lb1 _):.(TreeIxR frst2 lb2 _), Z:.(TreeIxR _ ub1 _):.(TreeIxR _ ub2 _)) = bounds oft
   let ix = (Z:.TreeIxR frst1 lb1 F:.TreeIxR frst2 lb2 F)
   let sc = ift ! ix
@@ -315,7 +344,7 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc affinSc tem
             let k' = unsafeCoerce k
             in  ( k1
                 , k2
-                , ((imt!k) * (omt!k') / sc)
+                , ((itt!k) * (ott!k') / sc)
                 , (maybe "-" label $ F.label t1 VG.!? k1)
                 , (maybe "-" label $ F.label t2 VG.!? k2)
                 )) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T,k1,k2) | k1 <- [lb1 .. ub1 - 1], k2 <- [lb2 .. ub2 - 1] ]
