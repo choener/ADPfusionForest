@@ -2,8 +2,6 @@ resolver: lts-5.2
 
 packages:
 - '.'
-- location: ../Lib-GrammarProducts/
-  extra-dep: true
 
 extra-deps:
 - ADPfusion-0.5.1.0
@@ -11,6 +9,7 @@ extra-deps:
 - cereal-text-0.1.0.1
 - ForestStructures-0.0.0.1
 - FormalGrammars-0.3.0.0
+- GrammarProducts-0.1.1.2
 - hybrid-vectors-0.2.1
 - OneTuple-0.2.1
 - OrderedBits-0.0.1.0

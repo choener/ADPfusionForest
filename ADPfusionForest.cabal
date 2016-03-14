@@ -2,7 +2,7 @@ name:           ADPfusionForest
 version:        0.0.0.1
 author:         Christian Hoener zu Siederdissen, Sarah Berkemer, 2016
 copyright:      Christian Hoener zu Siederdissen, 2016
-homepage:       https://github.com/choener/ADPfusion
+homepage:       https://github.com/choener/ADPfusionForest
 bug-reports:    https://github.com/choener/ADPfusionForest/issues
 maintainer:     choener@bioinf.uni-leipzig.de
 category:       Formal Languages, Bioinformatics
@@ -12,7 +12,7 @@ build-type:     Simple
 stability:      experimental
 cabal-version:  >= 1.10.0
 tested-with:    GHC == 7.8.4, GHC == 7.10.3
-synopsis:       Dynamic programming on tree- and forest structures
+synopsis:       Dynamic programming on tree and forest structures
 description:
                 ADPfusion for formal languages on tree and forest structures.
                 This library connects @ForestStructures@, a library which
@@ -56,8 +56,8 @@ library
     Data.Forest.Static.Node
   default-language:
     Haskell2010
-  default-extensions: BangPatterns
-                    , AllowAmbiguousTypes
+  default-extensions: AllowAmbiguousTypes
+                    , BangPatterns
                     , DataKinds
                     , FlexibleContexts
                     , FlexibleInstances

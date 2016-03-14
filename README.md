@@ -2,7 +2,8 @@
 
 # ADPfusionForest: Dynamic and static tree and forest structures
 
-The static tree structure(s) shall be designed with an emphasis on performance.
+This library extents ADPfusion to accept input in the form of trees and
+forests.
 
 
 
