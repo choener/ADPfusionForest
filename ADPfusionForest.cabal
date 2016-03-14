@@ -120,6 +120,8 @@ executable AlignNewickTrees
     -O2
     -funbox-strict-fields
 
+
+
 executable AffineAlignNewickTreesSmall
   if flag(examples)
     buildable:
@@ -145,6 +147,51 @@ executable AffineAlignNewickTreesSmall
     src
   main-is:
     AffineAlignNewickTreesSmall.hs
+  default-language:
+    Haskell2010
+  default-extensions: BangPatterns
+                    , DataKinds
+                    , DeriveDataTypeable
+                    , FlexibleContexts
+                    , GADTs
+                    , MultiParamTypeClasses
+                    , OverloadedStrings
+                    , QuasiQuotes
+                    , RecordWildCards
+                    , TemplateHaskell
+                    , TypeFamilies
+                    , TypeOperators
+  ghc-options:
+    -O2
+    -funbox-strict-fields
+
+
+
+executable EditNewickTrees
+  if flag(examples)
+    buildable:
+      True
+    build-depends: base
+                 , ADPfusion
+                 , ADPfusionForest
+                 , BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
+                 , cmdargs                >= 0.10     &&  < 0.11
+                 , containers
+                 , filepath
+                 , ForestStructures
+                 , FormalGrammars         >= 0.3      &&  < 0.4
+                 , log-domain             >= 0.10     &&  < 0.11
+                 , PrimitiveArray
+                 , PrimitiveArray-Pretty  >= 0.0      &&  < 0.1
+                 , text
+                 , vector
+  else
+    buildable:
+      False
+  hs-source-dirs:
+    src
+  main-is:
+    EditNewickTrees.hs
   default-language:
     Haskell2010
   default-extensions: BangPatterns

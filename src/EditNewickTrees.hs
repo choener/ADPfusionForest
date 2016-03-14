@@ -1,8 +1,8 @@
 
 module Main where
 
-import           Control.Monad(forM_)
-import           Data.List (nub)
+import           Control.Monad(forM_,unless)
+import           Data.List (nub,tails)
 import           Data.Text (Text)
 import           Data.Vector.Fusion.Util
 import           Debug.Trace
@@ -10,6 +10,10 @@ import qualified Data.Tree as T
 import qualified Data.Vector as V
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Generic as VG
+import           System.Console.CmdArgs
+import           System.Exit (exitFailure)
+import           Text.Printf
+import qualified Data.Text as Text
 
 import           ADP.Fusion
 import           Biobase.Newick
@@ -31,9 +35,7 @@ T: x
 S: [F,F]
 [F,F] -> iter   <<< [F,F] [T,T]
 [F,F] -> indel  <<< [F,F] [-,x]
---[F,F] -> findel <<< [-,x] [F,F]
 [F,F] -> delin  <<< [F,F] [x,-]
---[F,F] -> delfin <<< [x,-] [F,F]
 [T,T] -> align  <<< [F,F] [x,x]
 [F,F] -> done   <<< [e,e]
 //
@@ -46,26 +48,26 @@ makeAlgebraProduct ''SigGlobal
 
 
 
-score :: Monad m => SigGlobal m Int Int Info Info
-score = SigGlobal
-  { align = \ f ( Z:.n0:.n1) -> f + if label n0 == label n1 then 100 else -111
+score :: Monad m => Int -> Int -> Int -> SigGlobal m Int Int Info Info
+score mat mis ndl = SigGlobal
+  { align = \ f ( Z:.n0:.n1) -> f + if label n0 == label n1 then mat else mis
   , done = \(Z:.():.()) -> 0
   , iter = \ f t -> f+t
-  , indel = \ f (Z:.():.n1) -> f - 1
-  , delin = \ f (Z:.n0:.()) -> f - 1
+  , indel = \ f (Z:.():.n1) -> f + ndl
+  , delin = \ f (Z:.n0:.()) -> f + ndl
   , h = SM.foldl' max (-77777) 
 }
 {-# Inline score #-}
 
 
-type Pretty' = [[T.Tree (Info,Info)]]
-pretty' :: Monad m => SigGlobal m [T.Tree (Info,Info)] [[T.Tree ((Info,Info))]] Info Info
+type Pretty' = [[(Info,Info)]]
+pretty' :: Monad m => SigGlobal m [(Info,Info)] [[(Info,Info)]] Info Info
 pretty' = SigGlobal
   { done  = \ (Z:.():.()) -> []
   , iter  = \ f t -> f++t
-  , align = \ f (Z:.a:.b) -> [T.Node (a,b) f]
-  , indel = \ f (Z:.():.b) -> [T.Node (Info "-" 0,b) f]
-  , delin = \ f (Z:.a:.()) -> [T.Node (a,Info "-" 0) f]
+  , align = \ f (Z:.a:.b) -> (a,b) : f
+  , indel = \ f (Z:.():.b) -> (Info "-" 0,b) : f
+  , delin = \ f (Z:.a:.()) -> (a,Info "-" 0) : f
   , h     = SM.toList
   }
 {-# Inline pretty' #-}
@@ -76,22 +78,23 @@ type Trix = TreeIxL Post V.Vector Info I
 type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
 type Frst = Forest Post V.Vector Info
 
-runForward :: Frst -> Frst -> Z:.Tbl Int:.Tbl Int
-runForward f1 f2 = mutateTablesDefault $
-                   gGlobal score
-                   (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (node $ F.label f1)
-                   (node $ F.label f2)
+runForward :: Int -> Int -> Int -> Frst -> Frst -> Z:.Tbl Int:.Tbl Int
+runForward mat mis ndl f1 f2
+  = mutateTablesDefault $
+      gGlobal (score mat mis ndl)
+      (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+      (node $ F.label f1)
+      (node $ F.label f2)
+{-# NoInline runForward #-}
 
 
-
-run :: Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,Int,Pretty')
-run f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
-  where fwd@(Z:.f:.t) = runForward f1 f2
-        Z:.fb:.tb = gGlobal (score <|| pretty') (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
+run :: Int -> Int -> Int -> Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,Int,Pretty')
+run mat mis ndl f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
+  where fwd@(Z:.f:.t) = runForward mat mis ndl f1 f2
+        Z:.fb:.tb = gGlobal (score mat mis ndl <|| pretty') (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
                     (node $ F.label f1) (node $ F.label f2)
---                    (node $ F.label f1) (node $ F.label f2)
+{-# NoInline run #-}
 
 
 
@@ -121,7 +124,7 @@ testedit = do
   print $ F.leftMostLeaves t2
   print $ F.leftKeyRoots t2
   putStrLn ""
-  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt') = run t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt') = run 1 (-3) (-1) t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
   mapM_ print $ assocs f
   print ""
   mapM_ print $ assocs t
@@ -133,12 +136,45 @@ testedit = do
   print (length bt', length bt)
   forM_ bt $ \b -> do
     putStrLn ""
-    forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
+    forM_ b $ \x -> print x -- putStrLn $ T.drawTree $ fmap show x
   print sc
 
 
+
+data Options = Options
+  { inputFiles  :: [String]
+  , matchSc     :: Int
+  , notmatchSc  :: Int
+  , delinSc     :: Int
+  }
+  deriving (Show,Data,Typeable)
+
+oOptions = Options
+  { inputFiles  = def &= args
+  , matchSc     = 10  &= help "score for match cases, positive number; def=10"
+  , notmatchSc  = -30 &= help "score for mismatches, negative number; def=-30"
+  , delinSc     = -10 &= help "score for deletions and insertions, negative number; def=-10"
+  }
+
 main :: IO ()
-main = return ()
-
-
+main = do
+  o@Options{..} <- cmdArgs oOptions
+  unless (length inputFiles >= 2) $ do
+    putStrLn "give at least two Newick files on the command line"
+    exitFailure
+  let ts = init $ init $ tails inputFiles
+  forM_ ts $ \(n1:hs) -> do
+    forM_ hs $ \n2 -> do
+      let f x = either error (F.forestPost . map getNewickTree) $ newicksFromText $ Text.pack x
+      putStrLn n1
+      putStrLn n2
+      f1 <- f <$> readFile n1
+      f2 <- f <$> readFile n2
+      let (_,sc,bt') = run matchSc notmatchSc delinSc f1 f2
+      let bt = nub $ take 10 bt'
+      printf "Score: %10d\n" sc
+      putStrLn ""
+      forM_ bt $ \b -> do
+        forM_ b $ \(Info l _, Info r _) -> printf "%1s.%1s  " (Text.unpack l) (Text.unpack r)
+        putStrLn ""
 
