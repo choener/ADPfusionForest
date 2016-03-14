@@ -1,35 +1,37 @@
 
 module Main where
 
-import qualified Data.Vector.Fusion.Stream.Monadic as SM
-import qualified Data.Vector as V
-import qualified Data.Vector.Generic as VG
-import Control.Monad(forM_, unless)
-import Data.Vector.Fusion.Util
-import qualified Data.Tree as T
-import Debug.Trace
-import Data.List (nub, tails)
-import Text.Printf
-import Unsafe.Coerce
+import           Control.Monad(forM_, unless)
+import           Data.Char (toLower)
+import           Data.List (nub, tails)
+import           Data.List (sortBy)
+import           Data.Ord (comparing)
+import           Data.Vector.Fusion.Util
+import           Debug.Trace
+import           Numeric.Log
 import qualified Data.Text as Text
-import Numeric.Log
-import Data.List (sortBy)
-import Data.Ord (comparing)
-import System.Console.CmdArgs
-import System.Exit (exitFailure)
-import System.FilePath
-import Data.Char (toLower)
+import qualified Data.Tree as T
+import qualified Data.Vector as V
+import qualified Data.Vector.Fusion.Stream.Monadic as SM
+import qualified Data.Vector.Generic as VG
+import           System.Console.CmdArgs
+import           System.Exit (exitFailure)
+import           System.FilePath
+import           Text.Printf
+import           Unsafe.Coerce
 
-import ADP.Fusion
-import Biobase.Newick
-import Data.Forest.Static (TreeOrder(..),Forest)
-import Data.PrimitiveArray as PA hiding (map)
-import Diagrams.TwoD.ProbabilityGrid
-import FormalLanguage.CFG
+import           ADP.Fusion
+import           Biobase.Newick
+import           Data.Forest.Static (TreeOrder(..),Forest)
+import           Data.PrimitiveArray as PA hiding (map)
+import           Diagrams.TwoD.ProbabilityGrid
+import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
 
-import Data.Forest.Static.ADP
-import Data.Forest.Static.Node
+import           Data.Forest.Static.AlignRL
+import           Data.Forest.Static.Node
+
+
 
 [formalLanguage|
 Verbose
@@ -186,63 +188,6 @@ t62 = "(b,(c,d)f)a;"
 t71 = "(b)a;"
 t72 = "(b)a;"
 
-{-
-testalignS t1' t2' matchSc notmatchSc delinSc = do
-  let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
-      t1 = f $ Text.pack t1'
-      t2 = f $ Text.pack t2'
-  print t1
-  putStrLn ""
-  print t2
-  putStrLn ""
-  let (fwd,sc,bt') = runS t1 t2 matchSc notmatchSc delinSc
-  let (Z:.ITbl _ _ _ ift _ :. ITbl _ _ _ imt _ :. ITbl _ _ _ itt _) = fwd
-  print ""
-  let bt = take 10 $ nub bt'
-  print (length bt', length bt)
-  forM_ bt $ \b -> do
-    putStrLn ""
-    forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
-  print sc
-
-testalignIO t1' t2' matchSc mismatchSc indelSc temperature = do
-  let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
-      t1 = f $ Text.pack t1'
-      t2 = f $ Text.pack t2'
-  print t1
-  putStrLn ""
-  print t2
-  putStrLn ""
-  let (inn,out,_) = runIO t1 t2 matchSc mismatchSc indelSc temperature -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
-  let (Z:.ITbl _ _ _ ift _ :. ITbl _ _ _ imt _ :. ITbl _ _ _ itt _) = inn
-  let (Z:.ITbl _ _ _ oft _ :. ITbl _ _ _ omt _ :. ITbl _ _ _ ott _) = out
-  let (Z:.(TreeIxR frst1 lb1 _):.(TreeIxR frst2 lb2 _), Z:.(TreeIxR _ ub1 _):.(TreeIxR _ ub2 _)) = bounds oft
-  let ix = (Z:.TreeIxR frst1 lb1 F:.TreeIxR frst2 lb2 F)
-  let sc = ift ! ix
-  --let ox = (Z:.TreeIxR frst1 ub1 E:.TreeIxR frst2 ub2 E)
-  --let sc = oft ! ox
-  printf "%30s %10s %10s %10s\n" ("index"::String) ("i-F"::String) ("i-M"::String) ("i-T"::String)
-  mapM_ (\(k,v) -> printf "%30s %10.5f %10.5f %10.5f\n" (show k) (exp $ ln v) (exp $ ln $ imt ! k) (exp $ ln $ itt ! k)) $ assocs ift
-  putStrLn ""
-  printf "%30s %10.8f\n" (show ix) (exp $ ln sc)
-  putStrLn ""
-  --
-  printf "%30s %10s %10s %10s\n" ("index"::String) ("o-F"::String) ("o-M"::String) ("o-T"::String)
-  mapM_ (\(k,v) -> printf "%30s %10.5f %10.5f %10.5f\n" (show k) (exp $ ln v) (exp $ ln $ omt ! k) (exp $ ln $ ott ! k)) $ assocs oft
-  putStrLn ""
-  printf "%30s %10s %10s %10s %6s %6s\n" ("index"::String) ("i-M"::String) ("o-M"::String) ("i*o / sc"::String) ("lbl 1" :: String) ("lbl 2" :: String)
-  mapM_ (\(k,k1,k2) -> let k' = unsafeCoerce k
-                       in  printf "%30s %10.7f %10.7f %10.7f %6s %6s\n"
-                                        (show k)
-                                        (exp $ ln $ imt ! k) (exp $ ln $ omt ! k') (exp $ ln $ (imt!k) * (omt!k') / sc)
-                                        (maybe "-" label $ F.label t1 VG.!? k1) (maybe "-" label $ F.label t2 VG.!? k2)
-        ) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T,k1,k2) | k1 <- [lb1 .. ub1], k2 <- [lb2 .. ub2] ]
-  --let (buL,buU) = bounds ift
-  --ixs <- (SM.toList $ streamUp buL buU)
-  --let ixs' = map (\k -> (linearIndex buL buU k,k)) ixs
-  --mapM_ print $ sortBy (comparing fst) ixs'
-  --print $ size buL buU
--}
 data PFT = SVG | EPS
   deriving (Show,Data,Typeable)
 
@@ -329,20 +274,3 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
   case probFileTy of
          SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
          EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
-  --
-  --printf "%30s %10s %10s %10s\n" ("index"::String) ("i-F"::String) ("i-M"::String) ("i-T"::String)
-  --mapM_ (\(k,v) -> printf "%30s %10.5f %10.5f %10.5f\n" (show k) (exp $ ln v) (exp $ ln $ imt ! k) (exp $ ln $ itt ! k)) $ assocs ift
-  --putStrLn ""
-  --printf "%30s %10.8f\n" (show ix) (exp $ ln sc)
-  --putStrLn ""
-  ----
-  --printf "%30s %10s %10s %10s\n" ("index"::String) ("o-F"::String) ("o-M"::String) ("o-T"::String)
-  --mapM_ (\(k,v) -> printf "%30s %10.5f %10.5f %10.5f\n" (show k) (exp $ ln v) (exp $ ln $ omt ! k) (exp $ ln $ ott ! k)) $ assocs oft
-  --putStrLn ""
-  --printf "%30s %10s %10s %10s %6s %6s\n" ("index"::String) ("i-M"::String) ("o-M"::String) ("i*o / sc"::String) ("lbl 1" :: String) ("lbl 2" :: String)
-  --mapM_ (\(k,k1,k2) -> let k' = unsafeCoerce k
-  --                     in  printf "%30s %10.7f %10.7f %10.7f %6s %6s\n"
-  --                                      (show k)
-  --                                      (exp $ ln $ imt ! k) (exp $ ln $ omt ! k') (exp $ ln $ (imt!k) * (omt!k') / sc)
-  --                                      (maybe "-" label $ F.label t1 VG.!? k1) (maybe "-" label $ F.label t2 VG.!? k2)
-  --      ) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T,k1,k2) | k1 <- [lb1 .. ub1], k2 <- [lb2 .. ub2] ]

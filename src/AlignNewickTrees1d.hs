@@ -1,20 +1,21 @@
 
 module Main where
 
-import qualified Data.Vector.Fusion.Stream.Monadic as SM
-import qualified Data.Vector as V
-import Data.Vector.Fusion.Util
+import           Data.Vector.Fusion.Util
+import           Debug.Trace
 import qualified Data.Tree as T
-import Debug.Trace
+import qualified Data.Vector as V
+import qualified Data.Vector.Fusion.Stream.Monadic as SM
 
-import ADP.Fusion
-import Data.PrimitiveArray as PA hiding (map)
-import FormalLanguage.CFG
-import Data.Forest.Static (TreeOrder(..),Forest)
+import           ADP.Fusion
+import           Biobase.Newick
+import           Data.Forest.Static (TreeOrder(..),Forest)
+import           Data.PrimitiveArray as PA hiding (map)
+import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
-import Biobase.Newick
 
-import Data.Forest.Static.ADP
+import           Data.Forest.Static.AlignRL
+
 
 
 [formalLanguage|

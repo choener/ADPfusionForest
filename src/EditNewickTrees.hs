@@ -1,25 +1,25 @@
 
 module Main where
 
-import qualified Data.Vector.Fusion.Stream.Monadic as SM
-import qualified Data.Vector as V
-import qualified Data.Vector.Generic as VG
-import Control.Monad(forM_)
-import Data.Vector.Fusion.Util
+import           Control.Monad(forM_)
+import           Data.List (nub)
+import           Data.Text (Text)
+import           Data.Vector.Fusion.Util
+import           Debug.Trace
 import qualified Data.Tree as T
-import Debug.Trace
-import Data.List (nub)
-import Data.Text (Text)
+import qualified Data.Vector as V
+import qualified Data.Vector.Fusion.Stream.Monadic as SM
+import qualified Data.Vector.Generic as VG
 
-import ADP.Fusion
-import Data.PrimitiveArray as PA hiding (map)
-import FormalLanguage.CFG
-import Data.Forest.Static (TreeOrder(..),Forest)
+import           ADP.Fusion
+import           Biobase.Newick
+import           Data.Forest.Static (TreeOrder(..),Forest)
+import           Data.PrimitiveArray as PA hiding (map)
+import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
-import Biobase.Newick
 
-import Data.Forest.Static.Left --Sparse
-import Data.Forest.Static.Node
+import           Data.Forest.Static.EditLL
+import           Data.Forest.Static.Node
 
 [formalLanguage|
 Verbose
@@ -57,28 +57,6 @@ score = SigGlobal
 }
 {-# Inline score #-}
 
-{-
-  { done  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
-  , iter  = \ f t -> tSI glb ("TFTFTFTFTF",f,t) $ t+f
-  , align = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f + if label a == label b then 100 else -11
-  , indel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f - 5
-  , delin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f - 3
-  , h     = SM.foldl' max (-88888)
-  }
-
-
-type Pretty = [[(Info,Info)]]
-pretty :: Monad m => SigGlobal m [(Info,Info)] [[(Info,Info)]] Info Info
-pretty = SigGlobal
-  { done  = \ (Z:.():.()) -> [] -- [(Info "" 0, Info "" 0)]
-  , iter  = \ t f -> t++f -- (Info "i1" 0, Info "i2" 0) : t ++ f
-  , align = \ (Z:.a:.b) f -> (a,b) : f
-  , indel = \ (Z:.():.b) f -> (Info "-" 0,b) : f
-  , delin = \ (Z:.a:.()) f -> (a,Info "-" 0) : f
-  , h     = SM.toList
-  }
-{-# Inline pretty #-}
--}
 
 type Pretty' = [[T.Tree (Info,Info)]]
 pretty' :: Monad m => SigGlobal m [T.Tree (Info,Info)] [[T.Tree ((Info,Info))]] Info Info
@@ -105,8 +83,6 @@ runForward f1 f2 = mutateTablesDefault $
                    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                    (node $ F.label f1)
                    (node $ F.label f2)
-  --                 (node $ F.label f1)
-  --                 (node $ F.label f2)
 
 
 

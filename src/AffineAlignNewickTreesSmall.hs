@@ -1,36 +1,37 @@
 
 module Main where
 
-import qualified Data.Vector.Fusion.Stream.Monadic as SM
-import qualified Data.Vector as V
-import qualified Data.Vector.Generic as VG
-import Control.Monad(forM_,unless)
-import Data.Vector.Fusion.Util
-import qualified Data.Tree as T
-import Debug.Trace
-import Data.List (nub,tails)
-
-import Text.Printf
-import Unsafe.Coerce
+import           Control.Monad(forM_,unless)
+import           Data.Char (toLower)
+import           Data.List (nub,tails)
+import           Data.List (sortBy)
+import           Data.Ord (comparing)
+import           Data.Vector.Fusion.Util
+import           Debug.Trace
+import           Numeric.Log
 import qualified Data.Text as Text
-import Numeric.Log
-import Data.List (sortBy)
-import Data.Ord (comparing)
-import System.Console.CmdArgs
-import System.Exit (exitFailure)
-import System.FilePath
-import Data.Char (toLower)
+import qualified Data.Tree as T
+import qualified Data.Vector as V
+import qualified Data.Vector.Fusion.Stream.Monadic as SM
+import qualified Data.Vector.Generic as VG
+import           System.Console.CmdArgs
+import           System.Exit (exitFailure)
+import           System.FilePath
+import           Text.Printf
+import           Unsafe.Coerce
 
-import ADP.Fusion
-import Data.PrimitiveArray as PA hiding (map)
-import FormalLanguage.CFG
-import Data.Forest.Static (TreeOrder(..),Forest)
+import           ADP.Fusion
+import           Biobase.Newick
+import           Data.Forest.Static (TreeOrder(..),Forest)
+import           Data.PrimitiveArray as PA hiding (map)
+import           Diagrams.TwoD.ProbabilityGrid
+import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
-import Biobase.Newick
-import Diagrams.TwoD.ProbabilityGrid
 
-import Data.Forest.Static.ADP
-import Data.Forest.Static.Node
+import           Data.Forest.Static.AlignRL
+import           Data.Forest.Static.Node
+
+
 
 [formalLanguage|
 Verbose
@@ -277,32 +278,6 @@ runIO f1 f2 matchSc mismatchSc indelSc affinSc temperature = (fwd,out,unId $ axi
 -- (b,b)       (-,f)                          100  (-5)
 --            /     \
 --       (c,c)       (-,d)                    100  (-5)
-{-
-testalign m a d = do
-  let t1 = f "a;" --"((d,e,f)b,(z)c)a;"  --"((b,c)e,d)a;"
-      t2 = f "((c)d)a;" --"(((d,e)y,f)b,(c,(x)i)g)a;"  --"(b,(c,d)f)a;"
---  let t1 = f "d;(b)e;" -- (b,c)e;"    -- '-3'
---      t2 = f "(d)f;b;" -- b;"
---  let t1 = f "(b:1,c:1)a:1;"
---      t2 = f "b:2;c:2;"
-      f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
-  print t1
-  putStrLn ""
-  print t2
-  putStrLn ""
-  let (_,sc,bt') = run t1 t2 m a d -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
- -- mapM_ print $ assocs f
-  print ""
- -- mapM_ print $ assocs t
-  --print f
-  --print t
-  let bt = take 10 $ nub bt'
-  print (length bt', length bt)
-  forM_ bt $ \b -> do
-    putStrLn ""
-    forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
-  print sc
--}
 
 -- all new from here
 
@@ -395,47 +370,3 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc affinSc tem
          SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
          EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
 
-{-
-executable AffineAlignNewickTreesSmall
-  if flag(examples)
-    buildable:
-      True
-    build-depends: base
-                 , ADPfusion
-                 , ADPfusionForest
-                 , BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
-                 , cmdargs                >= 0.10     &&  < 0.11
-                 , containers
-                 , filepath
-                 , ForestStructures
-                 , FormalGrammars         >= 0.3      &&  < 0.4
-                 , log-domain             >= 0.10     &&  < 0.11
-                 , PrimitiveArray
-                 , PrimitiveArray-Pretty  >= 0.0      &&  < 0.1
-                 , text
-                 , vector
-  else
-    buildable:
-      False
-  hs-source-dirs:
-    src
-  main-is:
-    AffineAlignNewickTreesSmall.hs
-  default-language:
-    Haskell2010
-  default-extensions: BangPatterns
-                    , DataKinds
-                    , DeriveDataTypeable
-                    , FlexibleContexts
-                    , GADTs
-                    , MultiParamTypeClasses
-                    , OverloadedStrings
-                    , QuasiQuotes
-                    , RecordWildCards
-                    , TemplateHaskell
-                    , TypeFamilies
-                    , TypeOperators
-  ghc-options:
-    -O0
-    -funbox-strict-fields
--}

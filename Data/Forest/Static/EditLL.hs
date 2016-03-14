@@ -1,26 +1,27 @@
-module Data.Forest.Static.Left where
+
+module Data.Forest.Static.EditLL where
 
 import           Data.Either (either)
 import           Data.Graph.Inductive.Basic
+import           Data.Strict.Tuple hiding (fst, snd)
 import           Data.Traversable (mapAccumL)
---import qualified Data.Map.Strict as S
+import           Data.Vector.Fusion.Stream.Monadic hiding (flatten)
+import           Debug.Trace
+import           Prelude hiding (map)
+import qualified Data.Forest.Static as F
 import qualified Data.Tree as T
 import qualified Data.Vector as V
+import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Unboxed as VU
-import qualified Data.Vector.Fusion.Stream.Monadic as SM
-import           Data.Vector.Fusion.Stream.Monadic hiding (flatten)
-import           Prelude hiding (map)
-import           Debug.Trace
-import           Data.Strict.Tuple hiding (fst, snd)
-import qualified Data.Forest.Static as F
---import Biobase.Newick
 
-import           Data.Forest.Static
-import           Data.Forest.Static.Node
 import           ADP.Fusion
-import           Data.PrimitiveArray hiding (map)
 import           ADP.Fusion.SynVar.Indices
+import           Data.Forest.Static
+import           Data.PrimitiveArray hiding (map)
+
+import           Data.Forest.Static.Node
+
 
 
 data TreeIxL p v a t = TreeIxL !(Forest p v a) !(VU.Vector Int) !Int !Int
@@ -107,10 +108,6 @@ instance
     = map (\(TState s ii ee) -> {-traceShow ('n',i,j) $-} TState s (ii:.:RiTilI (j-1) j) (ee:.f xs (j-1)) )
     . termStream ts cs us is
     . staticCheck (i<j)
---  termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxL _ _ l u) (is:.TreeIxL frst _ i j)
---    = map (\(TState s ii ee) -> traceShow ('m',i,j) $ TState s (ii:.:RiTilI i (i+1)) (ee:.f xs i) )
---    . termStream ts cs us is
---    . staticCheck (i<j)
   {-# Inline termStream #-}
 
 
@@ -171,7 +168,6 @@ instance
               let RiTilI k l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL p v a I))
               in  {- traceShow ("-"::String,l,tf) $ -} TState s (ii:.:RiTilI k l) (ee:.()) )
     . termStream ts cs us is
---    . staticCheck (ii == T)
   {-# Inline termStream #-}
 
 
@@ -214,8 +210,6 @@ instance
 instance
   ( IndexHdr s x0 i0 us (TreeIxL p v a I) cs c is (TreeIxL p v a I)
   , MinSize c
---  , Show a, VG.Vector v a -- TEMP!
---  , a ~ Info
   ) => AddIndexDense s (us:.TreeIxL p v a I) (cs:.c) (is:.TreeIxL p v a I) where
   addIndexDenseGo (cs:._) (vs:.IStatic ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
     = map go . addIndexDenseGo cs vs us is
@@ -230,19 +224,6 @@ instance
         let RiTilI _ k = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL p v a I))
             l = lc VG.! (j-1)
         in SvS s (tt:.TreeIxL frst lc k l) (ii:.:RiTilI k l)
-{-    = flatten mk step . addIndexDenseGo cs vs us is
-      where
-        mk s = 
-          let ss = if ps == -1 then roots frst else (children frst) VG.! ps
-              ps = parent frst VG.! i
-              rm = traceShow ('r',i,j) $ if i==j then j else VG.last $ VG.filter (<j) ss
-          in return (s,rm)
-        step ((SvS s tt ii),k)
-          | k==j = return $ Done
-          | otherwise = return $ Yield (SvS s (tt:.TreeIxL frst lc i k) (ii:.:RiTilI i k)) ((SvS s tt ii),j)
-        {-# Inline [0] mk #-}
-        {-# Inline [0] step #-}
--}
   {-# Inline addIndexDenseGo #-}
 
 

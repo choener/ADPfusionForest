@@ -1,11 +1,13 @@
-module Data.Forest.Static.Node where
 
+module Data.Forest.Static.Node where
 
 import           Data.Strict.Tuple
 import qualified Data.Vector.Generic as VG
 
-import           Data.PrimitiveArray
 import           ADP.Fusion
+import           Data.PrimitiveArray
+
+
 
 data Node r x where
   Node :: VG.Vector v x
@@ -31,3 +33,4 @@ instance
 
 
 type instance TermArg (Node r x) = r
+

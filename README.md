@@ -5,6 +5,8 @@
 This library extents ADPfusion to accept input in the form of trees and
 forests.
 
+WARNING: Building with examples will leading to somewhat long compilation
+times.
 
 
 #### Contact

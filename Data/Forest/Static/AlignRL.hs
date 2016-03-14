@@ -2,30 +2,30 @@
 -- | Data structures and instances to combine efficient 'Forest' structures
 -- with @ADPfusion@.
 
-module Data.Forest.Static.ADP where
+module Data.Forest.Static.AlignRL where
 
+import           Control.Exception (assert)
 import           Data.Either (either)
 import           Data.Graph.Inductive.Basic
+import           Data.Strict.Tuple hiding (fst, snd)
 import           Data.Traversable (mapAccumL)
---import qualified Data.Map.Strict as S
+import           Data.Vector.Fusion.Stream.Monadic hiding (flatten)
+import           Debug.Trace
+import           Prelude hiding (map)
+import qualified Data.Forest.Static as F
 import qualified Data.Tree as T
 import qualified Data.Vector as V
+import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Unboxed as VU
-import qualified Data.Vector.Fusion.Stream.Monadic as SM
-import           Data.Vector.Fusion.Stream.Monadic hiding (flatten)
-import           Prelude hiding (map)
-import           Debug.Trace
-import           Data.Strict.Tuple hiding (fst, snd)
-import qualified Data.Forest.Static as F
---import Biobase.Newick
-import Control.Exception (assert)
 
-import           Data.Forest.Static
-import           Data.Forest.Static.Node
 import           ADP.Fusion
-import           Data.PrimitiveArray hiding (map)
 import           ADP.Fusion.SynVar.Indices
+import           Data.Forest.Static
+import           Data.PrimitiveArray hiding (map)
+
+import           Data.Forest.Static.Node
+
 
 
 data TreeIxR p v a t = TreeIxR !(Forest p v a) !Int !TF

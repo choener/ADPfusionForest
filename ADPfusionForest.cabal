@@ -51,8 +51,8 @@ library
                , vector-th-unbox        >= 0.2      &&  < 0.3
 
   exposed-modules:
-    Data.Forest.Static.ADP
-    Data.Forest.Static.Left
+    Data.Forest.Static.AlignRL
+    Data.Forest.Static.EditLL
     Data.Forest.Static.Node
   default-language:
     Haskell2010
@@ -61,7 +61,6 @@ library
                     , DataKinds
                     , FlexibleContexts
                     , FlexibleInstances
-                    , GADTs
                     , GADTs
                     , KindSignatures
                     , MultiParamTypeClasses
@@ -161,7 +160,7 @@ executable AffineAlignNewickTreesSmall
                     , TypeFamilies
                     , TypeOperators
   ghc-options:
-    -O0
+    -O2
     -funbox-strict-fields
 
 
