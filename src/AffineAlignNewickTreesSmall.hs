@@ -27,7 +27,7 @@ import FormalLanguage.CFG
 import Data.Forest.Static (TreeOrder(..),Forest)
 import qualified Data.Forest.Static as F
 import Biobase.Newick
-import Data.PrimitiveArray.Pretty.InOut
+import Diagrams.TwoD.ProbabilityGrid
 
 import Data.Forest.Static.ADP
 import Data.Forest.Static.Node

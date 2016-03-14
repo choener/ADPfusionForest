@@ -118,7 +118,7 @@ executable AlignNewickTrees
                     , TypeFamilies
                     , TypeOperators
   ghc-options:
-    -O0
+    -O2
     -funbox-strict-fields
 
 executable AffineAlignNewickTreesSmall

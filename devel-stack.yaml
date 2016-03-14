@@ -1,37 +1,21 @@
-resolver: lts-5.1
+resolver: lts-5.2
 
 packages:
 - '.'
-- location: ../Lib-BiobaseNewick/
-    #git: ../Lib-BiobaseNewick/
-    #commit: 189a3ab7d45c119ffc1f9eba5fab2651db73b1ea
-  extra-dep: true
-- location: ../Lib-ForestStructures/
-    #git: ../Lib-ForestStructures/
-    #commit: a6051ecbd8cd391adce693bf6e35d5837094128c
-  extra-dep: true
-- location: ../Lib-ADPfusion/
-    #git: ../Lib-ADPfusion/
-    #commit: 21777e0143ec2a8d17217973793074589c88483d
-  extra-dep: true
-- location: ../Lib-FormalGrammars/
-    #git: ../Lib-FormalGrammars/
-    #commit: 7468842cf505fc2803b77e9f769e4e2803d7127d
-  extra-dep: true
-- location: ../Lib-PrimitiveArray/
-    #git: ../Lib-PrimitiveArray/
-    #commit: abbd079536772b0abf84ab4ac25d692184a5c1d4
-  extra-dep: true
 - location: ../Lib-GrammarProducts/
-  extra-dep: true
-- location: ../Lib-PrimitiveArray-Pretty/
   extra-dep: true
 
 extra-deps:
+- ADPfusion-0.5.1.0
+- BiobaseNewick-0.0.0.1
 - cereal-text-0.1.0.1
+- ForestStructures-0.0.0.1
+- FormalGrammars-0.3.0.0
 - hybrid-vectors-0.2.1
 - OneTuple-0.2.1
 - OrderedBits-0.0.1.0
+- PrimitiveArray-0.7.0.1
+- PrimitiveArray-Pretty-0.0.0.1
 - tuple-0.3.0.2
 
 flags:
