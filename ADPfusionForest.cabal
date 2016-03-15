@@ -26,6 +26,8 @@ Extra-Source-Files:
   changelog.md
   README.md
   stack.yaml
+  examples/t1.nwk
+  examples/t2.nwk
 
 
 
