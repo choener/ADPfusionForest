@@ -1,20 +1,29 @@
-resolver: lts-5.2
+resolver: lts-5.10
 
 packages:
 - '.'
+- location: ../Lib-ADPfusion/
+  extra-dep: true
+- location: ../Lib-ForestStructures/
+  extra-dep: true
+- location: ../Lib-OrderedBits/
+  extra-dep: true
+- location: ../Lib-PrimitiveArray/
+  extra-dep: true
+- location: ../Lib-PrimitiveArray-Pretty/
+  extra-dep: true
+# only for the examples (which will go into their own libraries soon)
+- location: ../Lib-FormalGrammars/
+  extra-dep: true
+- location: ../Lib-GrammarProducts/
+  extra-dep: true
+- location: ../Lib-BiobaseNewick/
+  extra-dep: true
 
 extra-deps:
-- ADPfusion-0.5.1.0
-- BiobaseNewick-0.0.0.1
 - cereal-text-0.1.0.1
-- ForestStructures-0.0.0.1
-- FormalGrammars-0.3.0.0
-- GrammarProducts-0.1.1.2
 - hybrid-vectors-0.2.1
 - OneTuple-0.2.1
-- OrderedBits-0.0.1.0
-- PrimitiveArray-0.7.0.1
-- PrimitiveArray-Pretty-0.0.0.1
 - tuple-0.3.0.2
 
 flags:
