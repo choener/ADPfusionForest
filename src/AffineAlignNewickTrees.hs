@@ -141,7 +141,8 @@ pretty' = SigGlobal
 
 
 type Trix = TreeIxR Pre V.Vector Info I
-type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
+type Tbl x = TwITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
+type TblBt x = TwITblBt Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) Int Id Id [x]
 type Frst = Forest Pre V.Vector Info
 
 runForward :: Frst -> Frst -> Int -> Int -> Int -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int
@@ -165,6 +166,7 @@ runForward f1 f2 m a d = let
                            (node $ F.label f2)
 
 
+type B = T.Tree (Info,Info)
 
 run :: Frst -> Frst -> Int -> Int -> Int -> (Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int,Int,Pretty')
 run f1 f2 m a d = (fwd,unId $ axiom a1, unId $ axiom b1)
@@ -184,6 +186,7 @@ run f1 f2 m a d = (fwd,unId $ axiom a1, unId $ axiom b1)
                     (toBacktrack a11 (undefined :: Id a -> Id a))  
                     (toBacktrack a12 (undefined :: Id a -> Id a))  
                     (node $ F.label f1) (node $ F.label f2)
+          :: Z:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B
 
 
 --         a            a

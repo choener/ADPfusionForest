@@ -100,8 +100,10 @@ pretty = SigGlobal
 
 
 type Trix = TreeIxR Pre V.Vector Info I
-type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
+type Tbl x = TwITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
 type Frst = Forest Pre V.Vector Info
+type TblBt x = TwITblBt Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) Int Id Id [x]
+type B = T.Tree (Info,Info)
 
 runForward :: Frst -> Frst -> Int -> Int -> Int -> Z:.Tbl Int :.Tbl Int:.Tbl Int
 runForward f1 f2 matchSc notmatchSc delinSc = mutateTablesDefault $
@@ -124,7 +126,7 @@ runInside f1 f2 matchSc mismatchSc indelSc temperature = mutateTablesDefault $
 {-# NoInline runInside #-}
 
 type Trox = TreeIxR Pre V.Vector Info O
-type OTbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trox:.Trox) x
+type OTbl x = TwITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trox:.Trox) x
 
 runOutside :: Frst -> Frst -> Log Double -> Log Double -> Log Double -> Log Double -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double) -> Z:.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double)
 runOutside f1 f2 matchSc mismatchSc indelSc temperature (Z:.iF:.iM:.iT)
@@ -145,6 +147,7 @@ runS f1 f2 matchSc notmatchSc delinSc = (fwd,unId $ axiom f, unId $ axiom fb)
   where fwd@(Z:.f:.m:.t) = runForward f1 f2 matchSc notmatchSc delinSc
         Z:.fb:.fm:.tb = gGlobal ((score matchSc notmatchSc delinSc) <|| pretty) (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack m (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))
                         (node $ F.label f1) (node $ F.label f2)
+                        :: Z:.TblBt B:.TblBt B:.TblBt B
 
 runIO f1 f2 matchSc mismatchSc indelSc temperature = (fwd,out,unId $ axiom f)
   where fwd@(Z:.f:.m:.t) = runInside f1 f2 matchSc mismatchSc indelSc temperature
@@ -240,7 +243,7 @@ runAlignS t1' t2' matchSc notmatchSc delinSc = do
       t1 = f $ Text.pack t1'
       t2 = f $ Text.pack t2'
   let (fwd,sc,bt') = runS t1 t2 matchSc notmatchSc delinSc
-  let (Z:.ITbl _ _ _ ift _ :. ITbl _ _ _ imt _ :. ITbl _ _ _ itt _) = fwd
+  let (Z:.TW (ITbl _ _ _ ift) _ :. TW (ITbl _ _ _ imt) _ :. TW (ITbl _ _ _ itt) _) = fwd
   let bt = nub bt'
   printf "Score: %10d\n" sc
   forM_ bt $ \b -> do
@@ -252,8 +255,8 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
       t1 = f $ Text.pack t1'
       t2 = f $ Text.pack t2'
   let (inn,out,_) = runIO t1 t2 matchSc mismatchSc indelSc temperature -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
-  let (Z:.ITbl _ _ _ ift _ :. ITbl _ _ _ imt _ :. ITbl _ _ _ itt _) = inn
-  let (Z:.ITbl _ _ _ oft _ :. ITbl _ _ _ omt _ :. ITbl _ _ _ ott _) = out
+  let (Z:.TW (ITbl _ _ _ ift) _ :. TW (ITbl _ _ _ imt) _ :. TW (ITbl _ _ _ itt) _) = inn
+  let (Z:.TW (ITbl _ _ _ oft) _ :. TW (ITbl _ _ _ omt) _ :. TW (ITbl _ _ _ ott) _) = out
   let (Z:.(TreeIxR frst1 lb1 _):.(TreeIxR frst2 lb2 _), Z:.(TreeIxR _ ub1 _):.(TreeIxR _ ub2 _)) = bounds oft
   let ix = (Z:.TreeIxR frst1 lb1 F:.TreeIxR frst2 lb2 F)
   let sc = ift ! ix

@@ -131,8 +131,10 @@ pretty' = SigGlobal
 
 
 type Trix = TreeIxR Pre V.Vector Info I
-type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
+type Tbl x = TwITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
 type Frst = Forest Pre V.Vector Info
+type TblBt x = TwITblBt Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) Int Id Id [x]
+type B = T.Tree (Info,Info)
 
 
 -- | likelihood part
@@ -204,7 +206,7 @@ runInside f1 f2 matchSc notmatchSc delinSc affinSc temperature = let
 
 -- outside part
 type Trox = TreeIxR Pre V.Vector Info O
-type OTbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trox:.Trox) x
+type OTbl x = TwITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trox:.Trox) x
 
 -- | Actual outside calculations.
 --
@@ -248,6 +250,7 @@ run f1 f2 matchSc notmatchSc delinSc affinSc = (fwd,unId $ axiom a2, unId $ axio
                     (toBacktrack a6 (undefined :: Id a -> Id a))  
                     (toBacktrack a7 (undefined :: Id a -> Id a))  
                     (node $ F.label f1) (node $ F.label f2)
+                    :: Z:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B
 
 
 -- outside part
@@ -335,7 +338,7 @@ runAlignS t1' t2' matchSc notmatchSc delinSc affinSc = do
       t1 = f $ Text.pack t1'
       t2 = f $ Text.pack t2'
   let (fwd,sc,bt') = run t1 t2 matchSc notmatchSc delinSc affinSc
-  let (Z:.ITbl _ _ _ iet _ :.ITbl _ _ _ ift _ :. ITbl _ _ _ iqt _ :. ITbl _ _ _ irt _ :. ITbl _ _ _ itt _ :. ITbl _ _ _ ist _ :. ITbl _ _ _ izt _) = fwd
+  let (Z:.TW (ITbl _ _ _ iet) _ :.TW (ITbl _ _ _ ift) _ :.TW (ITbl _ _ _ iqt) _ :.TW (ITbl _ _ _ irt) _ :.TW (ITbl _ _ _ itt) _ :.TW (ITbl _ _ _ ist) _ :.TW (ITbl _ _ _ izt) _) = fwd
   let bt = nub bt'
   printf "Score: %10d\n" sc
   forM_ bt $ \b -> do
@@ -347,8 +350,8 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc affinSc tem
       t1 = f $ Text.pack t1'
       t2 = f $ Text.pack t2'
   let (inn,out,_) = runIO t1 t2 matchSc mismatchSc indelSc affinSc temperature -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
-  let (Z:.ITbl _ _ _ iet _ :.ITbl _ _ _ ift _ :. ITbl _ _ _ iqt _ :. ITbl _ _ _ irt _ :. ITbl _ _ _ itt _ :. ITbl _ _ _ ist _ :. ITbl _ _ _ izt _) = inn
-  let (Z:.ITbl _ _ _ iet _ :.ITbl _ _ _ oft _ :. ITbl _ _ _ oqt _ :. ITbl _ _ _ ort _ :. ITbl _ _ _ ott _ :. ITbl _ _ _ ost _ :. ITbl _ _ _ ozt _) = out
+  let (Z:.TW (ITbl _ _ _ iet) _ :.TW (ITbl _ _ _ ift) _ :.TW (ITbl _ _ _ iqt) _ :.TW (ITbl _ _ _ irt) _ :.TW (ITbl _ _ _ itt) _ :.TW (ITbl _ _ _ ist) _ :.TW (ITbl _ _ _ izt) _) = inn
+  let (Z:.TW (ITbl _ _ _ iet) _ :.TW (ITbl _ _ _ oft) _ :.TW (ITbl _ _ _ oqt) _ :.TW (ITbl _ _ _ ort) _ :.TW (ITbl _ _ _ ott) _ :.TW (ITbl _ _ _ ost) _ :.TW (ITbl _ _ _ ozt) _) = out
   let (Z:.(TreeIxR frst1 lb1 _):.(TreeIxR frst2 lb2 _), Z:.(TreeIxR _ ub1 _):.(TreeIxR _ ub2 _)) = bounds oft
   let ix = (Z:.TreeIxR frst1 lb1 F:.TreeIxR frst2 lb2 F)
   let sc = ift ! ix

@@ -75,8 +75,10 @@ pretty' = SigGlobal
 
 
 type Trix = TreeIxL Post V.Vector Info I
-type Tbl x = ITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
+type Tbl x = TwITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
+type TblBt x = TwITblBt Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) Int Id Id [x]
 type Frst = Forest Post V.Vector Info
+type B = (Info,Info)
 
 runForward :: Int -> Int -> Int -> Frst -> Frst -> Z:.Tbl Int:.Tbl Int
 runForward mat mis ndl f1 f2
@@ -94,6 +96,7 @@ run mat mis ndl f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
   where fwd@(Z:.f:.t) = runForward mat mis ndl f1 f2
         Z:.fb:.tb = gGlobal (score mat mis ndl <|| pretty') (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
                     (node $ F.label f1) (node $ F.label f2)
+                    :: Z:.TblBt B:.TblBt B
 {-# NoInline run #-}
 
 
@@ -124,7 +127,7 @@ testedit = do
   print $ F.leftMostLeaves t2
   print $ F.leftKeyRoots t2
   putStrLn ""
-  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt') = run 1 (-3) (-1) t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (Z:.TW (ITbl _ _ _ f) _:.TW (ITbl _ _ _ t) _,sc,bt') = run 1 (-3) (-1) t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
   mapM_ print $ assocs f
   print ""
   mapM_ print $ assocs t

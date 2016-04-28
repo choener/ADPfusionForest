@@ -13,6 +13,7 @@ import           Data.Forest.Static (TreeOrder(..),Forest)
 import           Data.PrimitiveArray as PA hiding (map)
 import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
+import           Data.Forest.Static.Node
 
 import           Data.Forest.Static.AlignRL
 
@@ -64,8 +65,10 @@ pretty = SigGlobal
 
 
 type Trix = TreeIxR Pre V.Vector Info I
-type Tbl x = ITbl Id Unboxed EmptyOk Trix x
+type Tbl x = TwITbl Id Unboxed EmptyOk Trix x
 type Frst = Forest Pre V.Vector Info
+type TblBt x = TwITblBt Unboxed EmptyOk Trix Int Id Id [x]
+type B = Info
 
 runForward :: Frst -> Frst -> Z:.Tbl Int:.Tbl Int
 runForward f1 f2 = mutateTablesDefault $
@@ -82,6 +85,7 @@ run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
   where fwd@(Z:.f:.t) = runForward f1 f2
         Z:.fb:.tb = gGlobal (score <|| pretty) (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
                     (node $ F.label f1)
+                    :: Z:.TblBt B:.TblBt B
 
 
 test = do
@@ -92,7 +96,7 @@ test = do
   putStrLn ""
   --print t2
   putStrLn ""
-  let (Z:.ITbl _ _ _ f _:.ITbl _ _ _ t _,sc,bt) = run t1 t1
+  let (Z:.TW (ITbl _ _ _ f) _:.TW (ITbl _ _ _ t) _,sc,bt) = run t1 t1
   print f
   print t
   print bt
