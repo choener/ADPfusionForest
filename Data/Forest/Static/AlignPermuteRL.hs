@@ -18,6 +18,8 @@ import qualified Data.Vector as V
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Unboxed as VU
+import           Data.Vector.Instances
+import qualified Data.HashMap.Strict as HM
 
 import           ADP.Fusion
 import           ADP.Fusion.SynVar.Indices
@@ -27,42 +29,56 @@ import           Data.PrimitiveArray hiding (map)
 import           Data.Forest.Static.Node
 
 
+-- HETEROGEN
 
-data TreeIxR p v a t = TreeIxR !(Forest p v a) !Int !TF
+data TreeIxR p v a t = TreeIxR !(Forest p v a) !LookUp !TFE
 
 instance Show (TreeIxR p v a t) where
   show (TreeIxR _ i j) = show (i,j)
 
 minIx, maxIx :: Forest p v a -> TreeIxR p v a t
-minIx f = TreeIxR f 0 minBound
+minIx f = TreeIxR f (F $ roots f)
 
-maxIx f = TreeIxR f (VU.length (parent f)) maxBound
+maxIx f = TreeIxR f (E $ VU.length (parent f))
 {-# Inline minIx #-}
 {-# Inline maxIx #-}
 
-data TF = F | T | E
+type LookUp = HM.HashMap (VU.Vector Int) Int
+
+mkLookUp :: Forest p v a -> LookUp
+mkLookUp f = HM.fromList . flip zip [0..] . concatMap go $ roots f :: (G.toList $ children f)
+  where go = S.toList . S.fromList . concatMap (tail . subsequences) . permutations . G.toList
+
+data TFE = F (VU.Vector Int) | T !Int | E !Int
   deriving (Show,Eq,Ord,Enum,Bounded)
 
-instance Index TF where
+{-
+instance Index TFE where
   linearIndex _ _ tf = fromEnum tf
   {-# Inline linearIndex #-}
-  smallestLinearIndex _ = fromEnum (minBound :: TF)
+  smallestLinearIndex _ = fromEnum (minBound :: TFE)
   {-# Inline smallestLinearIndex #-}
-  largestLinearIndex _ = fromEnum (maxBound :: TF)
+  largestLinearIndex _ = fromEnum (maxBound :: TFE)
   {-# Inline largestLinearIndex #-}
-  size _ _ = fromEnum (maxBound :: TF) + 1
+  size _ _ = fromEnum (maxBound :: TFE) + 1
   {-# Inline size #-}
   inBounds _ u k = k <= u
   {-# Inline inBounds #-}
+-}
 
 
-data instance RunningIndex (TreeIxR p v a I) = RiTirI !Int !TF
+
+data instance RunningIndex (TreeIxR p v a I) = RiTirI !TFE
 
 instance Index (TreeIxR p v a t) where
   -- | trees @T@ are stored in the first line, i.e. @+0@, forests @F@ (with
   -- @j==u@ are stored in the second line, i.e. @+u+1@ to each index.
-  linearIndex (TreeIxR _ l ll) (TreeIxR _ u uu) (TreeIxR _ k tf)
-    = (fromEnum (maxBound :: TF) + 1) * k + fromEnum tf
+  linearIndex (TreeIxR _ _ ll) (TreeIxR _ _ uu) (TreeIxR _ lk tf)
+--    = (fromEnum (maxBound :: TF) + 1) * k + fromEnum tf
+    | T k <- tf = 2*k
+    | E k <- tf = 2*k+1
+    | F k <- tf = 2*m+ HM.lookup k lk
+    where E m = uu
   {-# Inline linearIndex #-}
   smallestLinearIndex _ = error "still needed?"
   {-# Inline smallestLinearIndex #-}
