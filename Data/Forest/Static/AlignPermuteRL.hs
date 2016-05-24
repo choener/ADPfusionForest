@@ -4,6 +4,7 @@
 
 module Data.Forest.Static.AlignRL where
 
+import qualified Data.List as L
 import           Control.Exception (assert)
 import           Data.Either (either)
 import           Data.Graph.Inductive.Basic
@@ -20,6 +21,9 @@ import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Unboxed as VU
 import           Data.Vector.Instances
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Set as S
+import           Data.List (subsequences, permutations)
+import qualified Prelude as P
 
 import           ADP.Fusion
 import           ADP.Fusion.SynVar.Indices
@@ -27,7 +31,6 @@ import           Data.Forest.Static
 import           Data.PrimitiveArray hiding (map)
 
 import           Data.Forest.Static.Node
-
 
 -- HETEROGEN
 
@@ -37,73 +40,113 @@ instance Show (TreeIxR p v a t) where
   show (TreeIxR _ i j) = show (i,j)
 
 minIx, maxIx :: Forest p v a -> TreeIxR p v a t
-minIx f = TreeIxR f (F $ roots f)
+minIx f = let l = mkLookUp f
+          in  TreeIxR f l undefined -- (F $ roots f)
 
-maxIx f = TreeIxR f (E $ VU.length (parent f))
+maxIx f = TreeIxR f undefined undefined --(E $ VU.length (parent f))
 {-# Inline minIx #-}
 {-# Inline maxIx #-}
 
+-- | For permutated trees, we need to know the order of the remaining
+-- children, given as a @VU.Vector Int@, yielding the next linearized
+-- index. The @LookUp@ data structure holds all possible such orderings of
+-- children.
+
 type LookUp = HM.HashMap (VU.Vector Int) Int
 
+-- | Given a static forest, we need to associate each possible ordered
+-- subset of children of each node with a linear index. The @mkLookUp@
+-- function generates this.
+--
+-- TODO use 'sortedSubForests' such that the partial order matches the
+-- linearized order.
+
 mkLookUp :: Forest p v a -> LookUp
-mkLookUp f = HM.fromList . flip zip [0..] . concatMap go $ roots f :: (G.toList $ children f)
-  where go = S.toList . S.fromList . concatMap (tail . subsequences) . permutations . G.toList
+mkLookUp f = HM.fromList . flip P.zip [0..] . go $ roots f : (VG.toList $ children f)
+  where go :: [VU.Vector Int] -> [VU.Vector Int]
+        go = P.map VG.fromList
+           . S.toList . S.fromList
+           . P.concatMap (P.tail . subsequences)
+           . P.concatMap permutations
+           . P.map VG.toList
+        -- @go@ generates all permutations (i.e. all orders of children),
+        -- then for each such order provides all possible subsequences.
+        -- This yields all ordered subsets. These are then made unique and
+        -- associated in the main body with linearized indices.
+
+-- | @TFE@ provides the three possible "states" of our system. @E@
+-- indicates that we have reached an indixed epsilon state. @T@ is the tree
+-- originating at a particular node. Finally @F@ is the subforest with an
+-- attached ordered set of subtrees.
 
 data TFE = F (VU.Vector Int) | T !Int | E !Int
-  deriving (Show,Eq,Ord,Enum,Bounded)
+  deriving (Show,Eq,Ord)
 
-{-
-instance Index TFE where
-  linearIndex _ _ tf = fromEnum tf
-  {-# Inline linearIndex #-}
-  smallestLinearIndex _ = fromEnum (minBound :: TFE)
-  {-# Inline smallestLinearIndex #-}
-  largestLinearIndex _ = fromEnum (maxBound :: TFE)
-  {-# Inline largestLinearIndex #-}
-  size _ _ = fromEnum (maxBound :: TFE) + 1
-  {-# Inline size #-}
-  inBounds _ u k = k <= u
-  {-# Inline inBounds #-}
--}
-
-
+-- | As usual, we need a running index. We only need the @TFE@ structure,
+-- since now (and compared to @AlignRL.hs@) we actually carry the node
+-- information in each @TFE@ ctor.
 
 data instance RunningIndex (TreeIxR p v a I) = RiTirI !TFE
+
+
+-- | The index function needs to provide a linearized representation of the
+-- @TFE@-based index.
 
 instance Index (TreeIxR p v a t) where
   -- | trees @T@ are stored in the first line, i.e. @+0@, forests @F@ (with
   -- @j==u@ are stored in the second line, i.e. @+u+1@ to each index.
+  -- Finally, all @F@ structures are looked up based on the linear index,
+  -- shifted by the base width of @2*m@.
   linearIndex (TreeIxR _ _ ll) (TreeIxR _ _ uu) (TreeIxR _ lk tf)
---    = (fromEnum (maxBound :: TF) + 1) * k + fromEnum tf
     | T k <- tf = 2*k
-    | E k <- tf = 2*k+1
-    | F k <- tf = 2*m+ HM.lookup k lk
+    | E k <- tf = 2*k + 1
+    | F k <- tf = 2*m + HM.lookupDefault (error "AlignPermuteRL: invariant violated!") k lk
     where E m = uu
   {-# Inline linearIndex #-}
   smallestLinearIndex _ = error "still needed?"
   {-# Inline smallestLinearIndex #-}
-  largestLinearIndex (TreeIxR p u ut) = (fromEnum (maxBound :: TF) + 1) * u + fromEnum (maxBound :: TF)
+  largestLinearIndex (TreeIxR p lk (E u)) = 2 * (u+1) + HM.size lk
+  largestLinearIndex (TreeIxR p lk err) = error $ "non-legal largest index structure: " P.++ show err
   {-# Inline largestLinearIndex #-}
-  size (TreeIxR _ l ll) (TreeIxR _ u uu) = (fromEnum (maxBound :: TF) + 1) * (u+1)
+  size (TreeIxR _ l ll) (TreeIxR _ lk (E u)) = 2 * (u+1) + HM.size lk + 1
   {-# Inline size #-}
-  inBounds (TreeIxR _ l _) (TreeIxR _ u _) (TreeIxR _ k _) = l <= k && k <= u
+  inBounds (TreeIxR _ l _) (TreeIxR _ u _) (TreeIxR _ k _) = error "inBounds: write me" -- l <= k && k <= u
   {-# Inline inBounds #-}
 
 
-instance IndexStream z => IndexStream (z:.TreeIxR p v a I) where
-  streamUp   (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamUpMk   lf ht) (streamUpStep   p lf ht) $ streamUp ls hs
-  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk lf ht) (streamDownStep p lf ht) $ streamDown ls hs
-  {-# Inline streamUp #-}
-  {-# Inline streamDown #-}
 
-streamUpMk lf ht z = return (z,ht,maxBound :: TF)
+instance IndexStream z => IndexStream (z:.TreeIxR Pre v a I) where
+  streamUp   (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamUpMk  p lf ht) (streamUpStep   p llk lf ht) $ streamUp ls hs
+  streamDown (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamUpMk  p lf ht) (streamUpStep   p llk lf ht) $ streamDown ls hs -- STUPID!!!
+--  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk lf ht) (streamDownStep p lf ht) $ streamDown ls hs
+  {-# Inline streamUp #-}
+--  {-# Inline streamDown #-}
+
+-- cull from p the non-needed parts via lf ht
+streamUpMk p lf ht z = return $ SE (z,sortedSubForests p)
 {-# Inline [0] streamUpMk #-}
 
-streamUpStep p lf ht (z,k,tf)
-  | k < lf         = return $ SM.Done
-  | tf == minBound = return $ SM.Yield (z:.TreeIxR p k tf) (z,k-1,maxBound)
-  | otherwise      = return $ SM.Yield (z:.TreeIxR p k tf) (z,k,pred tf)
+data StepTFE x = SF x | ST x | SE x
+
+-- | For each index @k@, we can easily first calculate @Epsilon k@. Then we
+-- want to know the tree at index @k@, but this needs knowledge of all
+-- subforests below it, hence we need to calculate this before @Tree k@.
+
+streamUpStep p lk lf ht (SE (z,[]))
+  = return $ SM.Done
+streamUpStep p lk lf ht (SE (z,x:xs))
+  | VU.length x > 1 = return $ SM.Skip (ST (z,x:xs))
+  | otherwise       = return $ SM.Yield (z:.TreeIxR p lk (E i)) (ST (z,x:xs))
+  where i = VU.head x
+streamUpStep p lk lf ht (ST (z,x:xs))
+  | VU.length x > 1 = return $ SM.Skip (SF (z,x:xs))
+  | otherwise       = return $ SM.Yield (z:.TreeIxR p lk (T i)) (SF (z,x:xs))
+  where i = VU.head x
+streamUpStep p lk lf ht (SF (z,x:xs))
+  = return $ SM.Yield (z:.TreeIxR p lk (F x)) (SE (z,xs))
 {-# Inline [0] streamUpStep #-}
+
+{-
 
 streamDownMk lf ht z = return (z,lf,minBound :: TF)
 {-# Inline [0] streamDownMk #-}
@@ -114,6 +157,7 @@ streamDownStep p lf ht (z,k,tf)
   | otherwise      = return $ SM.Yield (z:.TreeIxR p k tf) (z,k,succ tf)
 {-# Inline [0] streamDownStep #-}
 
+-}
 
 instance IndexStream (Z:.TreeIxR p v a t) => IndexStream (TreeIxR p v a t)
 
@@ -122,7 +166,7 @@ instance RuleContext (TreeIxR p v a I) where
   initialContext _ = IStatic ()
   {-# Inline initialContext #-}
 
-
+{-
 
 -- Node: parse a local root
 
@@ -878,4 +922,6 @@ instance
     where go (SvS s tt ii) =
             let RiTirC k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a C))
             in  SvS s (tt:.TreeIxR frst k tf) (ii:.:RiTirC k tf)
+
+-}
 
