@@ -341,13 +341,15 @@ instance
     $ mkStream S vs lus is
   {-# INLINE mkStream #-}
 
+-}
+
 -- | When choosing tree and forest sizes, 
 
 data TFsize s
   -- The tree shall have size epsilon, the forest be full. If @TF@ is @F@
   -- then the forest is a real forest, if @TF@ is @T@ then the forest is
   -- a tree.
-  = EpsFull TF s
+  = EpsFull TFE s
   -- | The tree is full (and actually a forest), the remainder of the
   -- forest is epsilon. This means that in the "tree" synvar, we can only
   -- do indels.
@@ -395,31 +397,40 @@ data TFsize s
 --
 -- @
 
+getTFEIx :: TFE -> Int
+getTFEIx = undefined
+
 instance
   ( IndexHdr s x0 i0 us (TreeIxR p v a I) cs c is (TreeIxR p v a I)
   , MinSize c
 --  , Show a, VG.Vector v a -- TEMP!
 --  , a ~ Info
   ) => AddIndexDense s (us:.TreeIxR p v a I) (cs:.c) (is:.TreeIxR p v a I) where
-  addIndexDenseGo (cs:._) (vs:.IStatic ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j _)
+  addIndexDenseGo (cs:._) (vs:.IStatic ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
     = map go . addIndexDenseGo cs vs us is
     where
       go (SvS s tt ii) =
-        let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-            tf'         = if l==u then E else tf
+        let RiTirI tfe = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+            -- TODO this will probably barf, because we need the index
+            -- "after the empty forest", which we can't get anymore.
+            tfe'       = if getTFEIx tfe == getTFEIx utfe then E (getTFEIx tfe) else tfe
         in -- tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $
-            SvS s (tt:.TreeIxR frst l tf') (ii:.:RiTirI u E)
-  addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst u v) (is:.TreeIxR _ j jj)
+            SvS s (tt:.TreeIxR frst ul tfe') (ii:.:RiTirI utfe)
+  addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
     = flatten mk step . addIndexDenseGo cs vs us is
-    where mk svS = return $ EpsFull jj svS
+    where mk svS = return $ EpsFull jtfe svS
           step Finis = return $ Done
           -- nothing here
-          step (EpsFull E svS@(SvS s tt ii)) = return $ Yield (SvS s (tt:.TreeIxR frst j E) (ii:.:RiTirI j E)) Finis
+          step (EpsFull (E _) svS@(SvS s tt ii))
+            = let j = getTFEIx jtfe
+              in  return $ Yield (SvS s (tt:.TreeIxR frst jl (E j)) (ii:.:RiTirI (E j))) Finis
           -- _ -> TF , for forests: with T having size ε, F having full size
-          step (EpsFull F svS@(SvS s tt ii))
-            = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+          step (EpsFull (F ys) svS@(SvS s tt ii))
+            = do let RiTirI ktfe = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                     k           = getTFEIx ktfe
                  --tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
-                 return $ Yield (SvS s (tt:.TreeIxR frst k E) (ii:.:RiTirI k F)) (FullEpsFF svS)  -- @k Epsilon / full@
+                 return $ Yield (SvS s (tt:.TreeIxR frst jl (E k)) (ii:.:RiTirI ktfe)) (FullEpsFF svS)  -- @k Epsilon / full@
+  {-
           -- _ -> TF, for forests: with T having full size, F having size ε
           step (FullEpsFF svS@(SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
@@ -446,6 +457,7 @@ instance
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
+  -}
 
 glb = False
 
@@ -477,6 +489,7 @@ pardef frst k = maybe (-1) id $ parent frst VG.!? k
 {-# Inline pardef #-}
 
 
+{-
 
 -- * Outside instances
 
