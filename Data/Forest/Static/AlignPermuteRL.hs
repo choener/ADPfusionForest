@@ -86,6 +86,17 @@ isTree (T _) = True
 isTree _     = False
 {-# Inline isTree #-}
 
+isEmpty (E _) = True
+isEmpty _ = False
+{-# Inline isEmpty #-}
+
+getTFEIx (T l) = l
+getTFEIx (E l) = l
+getTFEIx (F vs)
+  | VU.null vs = error "AlignPermuteRL: Forest empty" -- change!!!
+  | otherwise = VU.head vs
+
+
 -- | As usual, we need a running index. We only need the @TFE@ structure,
 -- since now (and compared to @AlignRL.hs@) we actually carry the node
 -- information in each @TFE@ ctor.
@@ -256,7 +267,7 @@ instance TermStaticVar (PermNode r x) (TreeIxR p v a I) where
 
 
 
-{-
+
 
 -- | Epsilon
 --
@@ -276,12 +287,13 @@ instance
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a I)
   ) => TermStream m (TermSymbol ts Epsilon) s (is:.TreeIxR p v a I) where
-  termStream (ts:|Epsilon) (cs:.IStatic ()) (us:.TreeIxR _ u uu) (is:.TreeIxR frst i ii)
+  termStream (ts:|Epsilon) (cs:.IStatic ()) (us:.TreeIxR _ ul utfe) (is:.TreeIxR frst il itfe)
     = map (\(TState s ii ee) ->
-              let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-              in  TState s (ii:.:RiTirI l tf) (ee:.()) )
+              let RiTirI ef = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                  l         = case ef of {E l -> l ; F _ -> 0}
+              in  TState s (ii:.:RiTirI ef) (ee:.()) )
     . termStream ts cs us is
-    . staticCheck ( (ii==E) || (u==0 && uu==F) ) -- 2nd condition takes care of empty inputs
+    . staticCheck ( (isEmpty itfe)) --TODO: 2nd condition takes care of empty inputs
   {-# Inline termStream #-}
 
 
@@ -309,8 +321,8 @@ instance
   ) => TermStream m (TermSymbol ts Deletion) s (is:.TreeIxR p v a I) where
   termStream (ts:|Deletion) (cs:.IVariable ()) (us:.u) (is:.TreeIxR frst i ii)
     = map (\(TState s ii ee) ->
-              let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-              in  {- traceShow ("-"::String,l,tf) $ -} TState s (ii:.:RiTirI l tf) (ee:.()) )
+              let RiTirI tfe = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+              in  {- traceShow ("-"::String,l,tf) $ -} TState s (ii:.:RiTirI tfe) (ee:.()) )
     . termStream ts cs us is
 --    . staticCheck (ii == T)
   {-# Inline termStream #-}
@@ -326,8 +338,8 @@ instance TermStaticVar Deletion (TreeIxR p v a I) where
 -- Invisible starting symbol
 
 instance (Monad m) => MkStream m S (TreeIxR p v a I) where
-  mkStream S _ (TreeIxR frst u ut) (TreeIxR _ k kt)
-    = staticCheck (k>=0 && k<=u) . singleton . ElmS $ RiTirI k kt
+  mkStream S _ (TreeIxR frst ul utfe) (TreeIxR _ kl ktfe)
+    = staticCheck ((getTFEIx ktfe) >=0 && (getTFEIx ktfe) <= (getTFEIx utfe)) . singleton . ElmS $ RiTirI ktfe
   {-# Inline mkStream #-}
 
 
@@ -335,13 +347,11 @@ instance
   ( Monad m
   , MkStream m S is
   ) => MkStream m S (is:.TreeIxR p v a I) where
-  mkStream S (vs:._) (lus:.TreeIxR frst u ut) (is:.TreeIxR _ k kt)
-    = map (\(ElmS zi) -> ElmS $ zi :.: RiTirI k kt)
-    . staticCheck (k>=0 && k<=u)
+  mkStream S (vs:._) (lus:.TreeIxR frst ul utfe) (is:.TreeIxR _ kl ktfe)
+    = map (\(ElmS zi) -> ElmS $ zi :.: RiTirI ktfe)
+    . staticCheck ((getTFEIx ktfe) >=0 && (getTFEIx ktfe) <= (getTFEIx utfe))
     $ mkStream S vs lus is
   {-# INLINE mkStream #-}
-
--}
 
 -- | When choosing tree and forest sizes, 
 
@@ -396,9 +406,6 @@ data TFsize s
 --          i_k
 --
 -- @
-
-getTFEIx :: TFE -> Int
-getTFEIx = undefined
 
 instance
   ( IndexHdr s x0 i0 us (TreeIxR p v a I) cs c is (TreeIxR p v a I)
