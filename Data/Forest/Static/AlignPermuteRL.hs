@@ -2,7 +2,7 @@
 -- | Data structures and instances to combine efficient 'Forest' structures
 -- with @ADPfusion@.
 
-module Data.Forest.Static.AlignRL where
+module Data.Forest.Static.AlignPermuteRL where
 
 import qualified Data.List as L
 import           Control.Exception (assert)
