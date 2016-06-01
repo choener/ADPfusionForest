@@ -82,6 +82,10 @@ mkLookUp f = HM.fromList . flip P.zip [0..] . go $ roots f : (VG.toList $ childr
 data TFE = F (VU.Vector Int) | T !Int | E !Int
   deriving (Show,Eq,Ord)
 
+isTree (T _) = True
+isTree _     = False
+{-# Inline isTree #-}
+
 -- | As usual, we need a running index. We only need the @TFE@ structure,
 -- since now (and compared to @AlignRL.hs@) we actually carry the node
 -- information in each @TFE@ ctor.
@@ -166,7 +170,6 @@ instance RuleContext (TreeIxR p v a I) where
   initialContext _ = IStatic ()
   {-# Inline initialContext #-}
 
-{-
 
 -- Node: parse a local root
 
@@ -187,14 +190,14 @@ instance
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a I)
   ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxR p v a I) where
-  termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxR _ u ut) (is:.TreeIxR frst i it)
+  termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxR _ ul utfe) (is:.TreeIxR frst il itfe)
     = map (\(TState s ii ee) ->
-              let RiTirI l tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                  l'  = l+1
-                  tf'  = if VG.null (children frst VG.! l) then E else F
-              in  {- traceShow ("N"::String,l,tf) $ -} TState s (ii:.:RiTirI l' tf') (ee:.f xs l) )
+              let RiTirI (T l) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                  cs = children frst VG.! l
+                  fe = if VG.null cs then E (l+1) else F cs
+              in  {- traceShow ("N"::String,l,tf) $ -} TState s (ii:.:RiTirI fe) (ee:.f xs l) )
     . termStream ts cs us is
-    . staticCheck (i<u && it == T)
+    . staticCheck ({- itfe < utfe && -} isTree itfe)
   {-# Inline termStream #-}
 
 
@@ -204,6 +207,56 @@ instance TermStaticVar (Node r x) (TreeIxR p v a I) where
   {-# Inline [0] termStaticVar   #-}
   {-# Inline [0] termStreamIndex #-}
 
+
+
+-- PermNode: parse a local root and permute the local forest
+
+instance
+  ( TmkCtx1 m ls (PermNode r x) (TreeIxR p v a t)
+  ) => MkStream m (ls :!: PermNode r x) (TreeIxR p v a t) where
+  mkStream (ls :!: PermNode f xs) sv us is
+    = map (\(ss,ee,ii) -> ElmPermNode ee ii ss)
+    . addTermStream1 (PermNode f xs) sv us is
+    $ mkStream ls (termStaticVar (PermNode f xs) sv is) us (termStreamIndex (PermNode f xs) sv is)
+  {-# Inline mkStream #-}
+
+-- |
+--
+-- X    -> n    Y
+-- i,T  -> i,T  (i+1),t    -- @t@ = if @i@ has no children, then @E@, else @F@.
+
+instance
+  ( TstCtx m ts s x0 i0 is (TreeIxR p v a I)
+  ) => TermStream m (TermSymbol ts (PermNode r x)) s (is:.TreeIxR p v a I) where
+  termStream (ts:|PermNode f xs) (cs:.IVariable ()) (us:.TreeIxR _ ul utfe) (is:.TreeIxR frst il itfe)
+    = flatten mk step
+    . termStream ts cs us is
+    . staticCheck ({- itfe < utfe && -} isTree itfe)
+    where mk (TState s ii ee) =
+            let RiTirI (T l) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                cs = children frst VG.! l
+                fe = if VG.null cs then Nothing else (Just $ permutations $ VU.toList cs)
+            in  return (s, ii, ee, fe)
+          step (s, _ , _ , Just [])
+            = return $ Done
+          step (s, ii, ee,  Nothing)
+            = let RiTirI (T l) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+              in  return $ Yield (TState s (ii:.:RiTirI (E $ l+1)) (ee:.f xs l)) (s, ii, ee, Just [])
+          step (s, ii, ee, Just (y:ys))
+            = let RiTirI (T l) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+              in  return $ Yield (TState s (ii:.:RiTirI (F $ VU.fromList y)) (ee:.f xs l)) (s, ii, ee, Just ys)
+  {-# Inline termStream #-}
+
+
+instance TermStaticVar (PermNode r x) (TreeIxR p v a I) where
+  termStaticVar _ sv _ = sv
+  termStreamIndex _ _ (TreeIxR frst i j) = TreeIxR frst i j
+  {-# Inline [0] termStaticVar   #-}
+  {-# Inline [0] termStreamIndex #-}
+
+
+
+{-
 
 -- | Epsilon
 --
