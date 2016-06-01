@@ -437,24 +437,26 @@ instance
                      k           = getTFEIx ktfe
                  --tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
                  return $ Yield (SvS s (tt:.TreeIxR frst jl (E k)) (ii:.:RiTirI ktfe)) (FullEpsFF svS)  -- @k Epsilon / full@
-  {-
           -- _ -> TF, for forests: with T having full size, F having size ε
           step (FullEpsFF svS@(SvS s tt ii))
-            = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+            = do let RiTirI ktfe = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                     u           = getTFEIx utfe
                  --tSI (glb) ('W',u,k,T,'.',distance $ F.label frst VG.! 0) .
-                 return $ Yield (SvS s (tt:.TreeIxR frst k F) (ii:.:RiTirI u E)) (OneRemFT svS)   -- @full / u Epsilon@
+                 return $ Yield (SvS s (tt:.TreeIxR frst jl ktfe) (ii:.:RiTirI (E u))) (OneRemFT svS)   -- @full / u Epsilon@
           -- _ -> TF for forests: with T having size 1, F having full - 1 size
           step (OneRemFT (SvS s tt ii))
-            = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                     l         = rbdef u frst k
-                     ltf       = if l==u then E else F
+            = do let RiTirI (F kcs) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                     k         = VU.head kcs
+                     cs        = VU.tail cs
+                     ltfe      = if VU.null cs then (E $ getTFEIx utfe) else F cs
                  --tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
-                 return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l ltf)) Finis -- @1 / l ltf@
+                 return $ Yield (SvS s (tt:.TreeIxR frst jl (T k)) (ii:.:RiTirI ltfe)) Finis -- @1 / l ltf@
           -- _ -> TF , for trees: with T having size ε, F having size 1 (or T)
-          step (EpsFull T svS@(SvS s tt ii))
+          step (EpsFull (T _) svS@(SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                  --tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
                  return $ Yield (SvS s (tt:.TreeIxR frst k E) (ii:.:RiTirI k T)) (OneEpsTT svS)
+  {-
           -- _ -> TF, for trees: with T having size 1, F having size ε
           step (OneEpsTT (SvS s tt ii))
             = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
