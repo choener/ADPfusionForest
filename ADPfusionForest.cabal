@@ -54,6 +54,7 @@ library
                , vector-th-unbox        >= 0.2      &&  < 0.3
 
   exposed-modules:
+    Data.Forest.Static.AlignPermuteRL
     Data.Forest.Static.AlignRL
     Data.Forest.Static.EditLL
     Data.Forest.Static.Node

@@ -16,6 +16,7 @@ import           Prelude hiding (map)
 import qualified Data.Forest.Static as F
 import qualified Data.Tree as T
 import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Unboxed as VU
@@ -39,11 +40,12 @@ data TreeIxR p v a t = TreeIxR !(Forest p v a) !LookUp !TFE
 instance Show (TreeIxR p v a t) where
   show (TreeIxR _ i j) = show (i,j)
 
-minIx, maxIx :: Forest p v a -> TreeIxR p v a t
+minIx, maxIx :: Forest Pre v a -> TreeIxR Pre v a t
 minIx f = let l = mkLookUp f
-          in  TreeIxR f l undefined -- (F $ roots f)
+          in  TreeIxR f l (F (VU.fromList []))  -- $ roots f)
 
-maxIx f = TreeIxR f undefined undefined --(E $ VU.length (parent f))
+maxIx f = let l = mkLookUp f
+          in  TreeIxR f l (E $ VU.length (parent f))
 {-# Inline minIx #-}
 {-# Inline maxIx #-}
 
@@ -61,7 +63,9 @@ type LookUp = HM.HashMap (VU.Vector Int) Int
 -- TODO use 'sortedSubForests' such that the partial order matches the
 -- linearized order.
 
-mkLookUp :: Forest p v a -> LookUp
+mkLookUp :: Forest Pre v a -> LookUp
+mkLookUp f = HM.fromList . flip P.zip [0..] $ sortedSubForests f
+{-
 mkLookUp f = HM.fromList . flip P.zip [0..] . go $ roots f : (VG.toList $ children f)
   where go :: [VU.Vector Int] -> [VU.Vector Int]
         go = P.map VG.fromList
@@ -73,6 +77,7 @@ mkLookUp f = HM.fromList . flip P.zip [0..] . go $ roots f : (VG.toList $ childr
         -- then for each such order provides all possible subsequences.
         -- This yields all ordered subsets. These are then made unique and
         -- associated in the main body with linearized indices.
+-}
 
 -- | @TFE@ provides the three possible "states" of our system. @E@
 -- indicates that we have reached an indixed epsilon state. @T@ is the tree
@@ -115,7 +120,7 @@ instance Index (TreeIxR p v a t) where
   linearIndex (TreeIxR _ _ ll) (TreeIxR _ _ uu) (TreeIxR _ lk tf)
     | T k <- tf = 2*k
     | E k <- tf = 2*k + 1
-    | F k <- tf = 2*m + HM.lookupDefault (error "AlignPermuteRL: invariant violated!") k lk
+    | F k <- tf = 2*(m+1) + HM.lookupDefault (error "AlignPermuteRL: invariant violated!") k lk
     where E m = uu
   {-# Inline linearIndex #-}
   smallestLinearIndex _ = error "still needed?"
@@ -123,7 +128,7 @@ instance Index (TreeIxR p v a t) where
   largestLinearIndex (TreeIxR p lk (E u)) = 2 * (u+1) + HM.size lk
   largestLinearIndex (TreeIxR p lk err) = error $ "non-legal largest index structure: " P.++ show err
   {-# Inline largestLinearIndex #-}
-  size (TreeIxR _ l ll) (TreeIxR _ lk (E u)) = 2 * (u+1) + HM.size lk + 1
+  size (TreeIxR _ l ll) (TreeIxR _ lk (E u)) = 2 * (u+1) + HM.size l + 1
   {-# Inline size #-}
   inBounds (TreeIxR _ l _) (TreeIxR _ u _) (TreeIxR _ k _) = error "inBounds: write me" -- l <= k && k <= u
   {-# Inline inBounds #-}
@@ -138,15 +143,20 @@ instance IndexStream z => IndexStream (z:.TreeIxR Pre v a I) where
 --  {-# Inline streamDown #-}
 
 -- cull from p the non-needed parts via lf ht
-streamUpMk p lf ht z = return $ SE (z,sortedSubForests p)
+streamUpMk p lf ht z =
+  let ssf = sortedSubForests p
+      E ht' = ht
+  in  {- trace ("XXX" P.++ show ssf) . -} return $ SE' ht' (z,ssf)
 {-# Inline [0] streamUpMk #-}
 
-data StepTFE x = SF x | ST x | SE x
+data StepTFE x = SF x | ST x | SE x | SE' Int x
 
 -- | For each index @k@, we can easily first calculate @Epsilon k@. Then we
 -- want to know the tree at index @k@, but this needs knowledge of all
 -- subforests below it, hence we need to calculate this before @Tree k@.
 
+streamUpStep p lk lf ht (SE' k (z,xs))
+  = return $ SM.Yield (z:.TreeIxR p lk (E k)) (SE (z,xs))
 streamUpStep p lk lf ht (SE (z,[]))
   = return $ SM.Done
 streamUpStep p lk lf ht (SE (z,x:xs))
@@ -200,13 +210,14 @@ instance
 
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a I)
+  , Show r
   ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxR p v a I) where
   termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxR _ ul utfe) (is:.TreeIxR frst il itfe)
     = map (\(TState s ii ee) ->
               let RiTirI (T l) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                   cs = children frst VG.! l
                   fe = if VG.null cs then E (l+1) else F cs
-              in  {- traceShow ("N"::String,l,tf) $ -} TState s (ii:.:RiTirI fe) (ee:.f xs l) )
+              in  traceShow ("N"::String,cs,fe, f xs l) $ TState s (ii:.:RiTirI fe) (ee:.f xs l) )
     . termStream ts cs us is
     . staticCheck ({- itfe < utfe && -} isTree itfe)
   {-# Inline termStream #-}
@@ -293,7 +304,7 @@ instance
                   l         = case ef of {E l -> l ; F _ -> 0}
               in  TState s (ii:.:RiTirI ef) (ee:.()) )
     . termStream ts cs us is
-    . staticCheck ( (isEmpty itfe)) --TODO: 2nd condition takes care of empty inputs
+    . staticCheck ( (isEmpty itfe) || getTFEIx utfe == 0) --TODO: 2nd condition takes care of empty inputs
   {-# Inline termStream #-}
 
 
@@ -396,7 +407,7 @@ data TFsize s
 --
 --
 -- When does this happen? If you have @T -> - F@ then @F@ will now actually
--- be such a @T@.
+-- be such a @T@.    T -> TF ; (1) T -> εT ; (2) T -> Tε
 --
 -- X    ->  Y     Z       do not hand i,T down
 -- i,T      i,E   i,T
@@ -421,7 +432,7 @@ instance
             -- TODO this will probably barf, because we need the index
             -- "after the empty forest", which we can't get anymore.
             tfe'       = if getTFEIx tfe == getTFEIx utfe then E (getTFEIx tfe) else tfe
-        in -- tSI (glb) ('S',u,l,tf,'.',distance $ F.label frst VG.! 0) $
+        in  tSI (glb) ('S',tfe,'.') $
             SvS s (tt:.TreeIxR frst ul tfe') (ii:.:RiTirI utfe)
   addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
     = flatten mk step . addIndexDenseGo cs vs us is
@@ -435,40 +446,38 @@ instance
           step (EpsFull (F ys) svS@(SvS s tt ii))
             = do let RiTirI ktfe = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      k           = getTFEIx ktfe
-                 --tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
-                 return $ Yield (SvS s (tt:.TreeIxR frst jl (E k)) (ii:.:RiTirI ktfe)) (FullEpsFF svS)  -- @k Epsilon / full@
+                 tSI (glb) ('V',ktfe) .
+                   return $ Yield (SvS s (tt:.TreeIxR frst jl (E k)) (ii:.:RiTirI ktfe)) (FullEpsFF svS)  -- @k Epsilon / full@
           -- _ -> TF, for forests: with T having full size, F having size ε
           step (FullEpsFF svS@(SvS s tt ii))
             = do let RiTirI ktfe = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      u           = getTFEIx utfe
-                 --tSI (glb) ('W',u,k,T,'.',distance $ F.label frst VG.! 0) .
-                 return $ Yield (SvS s (tt:.TreeIxR frst jl ktfe) (ii:.:RiTirI (E u))) (OneRemFT svS)   -- @full / u Epsilon@
+                 tSI (glb) ('A',ktfe) .
+                   return $ Yield (SvS s (tt:.TreeIxR frst jl ktfe) (ii:.:RiTirI (E u))) (OneRemFT svS)   -- @full / u Epsilon@
           -- _ -> TF for forests: with T having size 1, F having full - 1 size
           step (OneRemFT (SvS s tt ii))
             = do let RiTirI (F kcs) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                      k         = VU.head kcs
-                     cs        = VU.tail cs
+                     cs        = VU.tail kcs
                      ltfe      = if VU.null cs then (E $ getTFEIx utfe) else F cs
-                 --tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
-                 return $ Yield (SvS s (tt:.TreeIxR frst jl (T k)) (ii:.:RiTirI ltfe)) Finis -- @1 / l ltf@
+                 tSI (glb) ('B') .
+                   return $ Yield (SvS s (tt:.TreeIxR frst jl (T k)) (ii:.:RiTirI ltfe)) Finis -- @1 / l ltf@
           -- _ -> TF , for trees: with T having size ε, F having size 1 (or T)
           step (EpsFull (T _) svS@(SvS s tt ii))
-            = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                 --tSI (glb) ('V',u,k,F,'.',distance $ F.label frst VG.! 0) .
-                 return $ Yield (SvS s (tt:.TreeIxR frst k E) (ii:.:RiTirI k T)) (OneEpsTT svS)
-  {-
+            = do let RiTirI (T k)  = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                 tSI (glb) ('Q') .
+                   return $ Yield (SvS s (tt:.TreeIxR frst ul (E k)) (ii:.:RiTirI (T k))) (OneEpsTT svS)
           -- _ -> TF, for trees: with T having size 1, F having size ε
           step (OneEpsTT (SvS s tt ii))
-            = do let RiTirI k tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-                     l         = rbdef u frst k
-                 --tSI (glb) ('W',u,k,l,T,'.',distance $ F.label frst VG.! 0) .
-                 return $ Yield (SvS s (tt:.TreeIxR frst k T) (ii:.:RiTirI l E)) Finis
+            = do let RiTirI (T k) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
+                     l         = rbdef (getTFEIx utfe) frst k
+                 tSI (glb) ('W') .
+                   return $ Yield (SvS s (tt:.TreeIxR frst ul (T k)) (ii:.:RiTirI (E l))) Finis
           {-# Inline [0] mk #-}
           {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
-  -}
 
-glb = False
+glb = True
 
 tSI cond s i = if cond then traceShow s i else i
 

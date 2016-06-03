@@ -36,6 +36,8 @@ type instance TermArg (Node r x) = r
 
 
 
+-- | TODO Should return permutation being used as well
+
 data PermNode r x where
   PermNode :: VG.Vector v x
        => (v x -> Int -> r)
