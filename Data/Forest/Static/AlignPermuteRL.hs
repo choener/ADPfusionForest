@@ -35,7 +35,19 @@ import           Data.Forest.Static.Node
 
 -- HETEROGEN
 
-data TreeIxR p v a t = TreeIxR !(Forest p v a) !LookUp !TFE
+-- |
+
+data TreeIxR p v a t
+  -- | The @TreeIxR@ constructor holds the runtime information for the
+  -- current subforest we look at.
+  --
+  -- We have a pointer to the actual forest structure @Forest p v a@. Next,
+  -- we have @Lookup@, it gives a linear index from the set of ordered
+  -- subforests to the set @|N@.
+  --
+  -- The actual runtime position is held by @TFE@, which is an index
+  -- structure in the current substructure.
+  = TreeIxR !(Forest p v a) !LookUp !TFE
 
 instance Show (TreeIxR p v a t) where
   show (TreeIxR _ i j) = show (i,j)
@@ -84,7 +96,18 @@ mkLookUp f = HM.fromList . flip P.zip [0..] . go $ roots f : (VG.toList $ childr
 -- originating at a particular node. Finally @F@ is the subforest with an
 -- attached ordered set of subtrees.
 
-data TFE = F (VU.Vector Int) | T !Int | E !Int
+data TFE
+  -- | Forest with permutation. The vector holds the trees making up the
+  -- forest, and their order via the root node indices of the individual
+  -- trees.
+  --
+  -- TODO do we allow empty forests?
+  = F (VU.Vector Int)
+  -- | A single tree, represented by the index of the root node.
+  | T !Int
+  -- | An empty forest, BUT annotated with index for the subforest "to the
+  -- right of it".
+  | E !Int
   deriving (Show,Eq,Ord)
 
 isTree (T _) = True
@@ -144,31 +167,66 @@ instance IndexStream z => IndexStream (z:.TreeIxR Pre v a I) where
 
 -- cull from p the non-needed parts via lf ht
 streamUpMk p lf ht z =
+      -- all sorted subsets of subforests in the forest (have a beer).
   let ssf = sortedSubForests p
+      -- extract the highest possible index, which by definition is an
+      -- @E index@.
       E ht' = ht
   in  {- trace ("XXX" P.++ show ssf) . -} return $ SE' ht' (z,ssf)
 {-# Inline [0] streamUpMk #-}
 
-data StepTFE x = SF x | ST x | SE x | SE' Int x
+-- |
+
+data StepTFE x
+  -- | @x@ is a set of size>=1, which will be turned into a forest.
+  = SF x
+  -- | @x@ is a set of size ==1, which will be turned into a tree.
+  | ST x
+  -- | Perform one step in @streamUpStep@. In case of trees, this will
+  -- actually yield both a tree and a forest.
+  | Stp x
+  -- | This encodes that we have an empty forest (@E@), but directly
+  -- encodes the highest @Int@-index given via @streamUpMk@.
+  | SE' Int x
 
 -- | For each index @k@, we can easily first calculate @Epsilon k@. Then we
 -- want to know the tree at index @k@, but this needs knowledge of all
 -- subforests below it, hence we need to calculate this before @Tree k@.
 
+-- this one is called only once and creates an @E k@ element at the highest
+-- possible index.
 streamUpStep p lk lf ht (SE' k (z,xs))
-  = return $ SM.Yield (z:.TreeIxR p lk (E k)) (SE (z,xs))
-streamUpStep p lk lf ht (SE (z,[]))
+  = return $ SM.Yield (z:.TreeIxR p lk (E k)) (Stp (z,xs))
+-- there is no subforest left to work with. We are done.
+streamUpStep p lk lf ht (Stp (z,[]))
   = return $ SM.Done
-streamUpStep p lk lf ht (SE (z,x:xs))
-  | VU.length x > 1 = return $ SM.Skip (ST (z,x:xs))
-  | otherwise       = return $ SM.Yield (z:.TreeIxR p lk (E i)) (ST (z,x:xs))
-  where i = VU.head x
+-- We have at least one sorted subforest @x:@ to deal with. By definition,
+-- sets of size 0 do not happen. This is enforced by @sortedSubForests@
+-- which produces vectors of @size >= 1@.
+streamUpStep p lk lf ht (Stp (z,x:xs))
+  -- subsets of size one are trees. They first create an @E@psilon object.
+  -- Then they create a @T@ree object, followed by a @F@orest with one tree.
+  | sz == 1 = return $ SM.Yield (z:.TreeIxR p lk (E i)) (ST (z,x:xs))
+  -- subsets of size 2 or more just create forests and we jump directly to
+  -- forest creation.
+  | sz >= 2 = return $ SM.Skip (SF (z,x:xs))
+  where sz = VU.length x
+        i = VU.head x
+-- Here we deal with structures that are supposed to be a tree @T@, via
+-- @ST@. Seems stupid at first, but if the set size of @x@ is one, we first
+-- create a @T@ree @T i@, then we will produce a forest @F [i]@ one step
+-- later.
+-- Here, we only have subsets of size ==1. We build a tree (we have already
+-- built the @E@ part before), and continue on to build a forest with
+-- exactly one tree inside.
 streamUpStep p lk lf ht (ST (z,x:xs))
-  | VU.length x > 1 = return $ SM.Skip (SF (z,x:xs))
-  | otherwise       = return $ SM.Yield (z:.TreeIxR p lk (T i)) (SF (z,x:xs))
+  = return $ SM.Yield (z:.TreeIxR p lk (T i)) (SF (z,x:xs))
   where i = VU.head x
+-- Create an ordered subforest @F x@. After that, we are done with @x@
+-- (indepedent of it being a tree or a forest), and continue with the
+-- remainder of the sets.
 streamUpStep p lk lf ht (SF (z,x:xs))
-  = return $ SM.Yield (z:.TreeIxR p lk (F x)) (SE (z,xs))
+  = return $ SM.Yield (z:.TreeIxR p lk (F x)) (Stp (z,xs))
 {-# Inline [0] streamUpStep #-}
 
 {-
