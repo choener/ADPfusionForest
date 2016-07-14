@@ -111,8 +111,8 @@ runForward f1 f2 matchSc notmatchSc delinSc = mutateTablesDefault $
                    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (node $ F.label f1)
-                   (node $ F.label f2)
+                   (permNode $ F.label f1)
+                   (permNode $ F.label f2)
 {-# NoInline runForward #-}
 
 --runInside :: Frst -> Frst -> Log Double -> Log Double -> Log Double -> Log Double -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double)
@@ -191,6 +191,8 @@ t62 = "(b,(c,d)f)a;"
 t71 = "(b)a;"
 t72 = "(b)a;"
 t81 = "(a,b,c)d;"
+t91 = "(b,c)a;"
+t92 = "(c,b)a;"
 
 data PFT = SVG | EPS
   deriving (Show,Data,Typeable)

@@ -348,7 +348,7 @@ instance
             = return $ Done
           step (s, ii, ee,  Nothing)
             = let RiTirI (T l) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
-              in  return $ Yield (TState s (ii:.:RiTirI (E $ l+1)) (ee:.f xs l)) (s, ii, ee, Just [])
+              in  return $ Yield (TState s (ii:.:RiTirI (E l)) (ee:.f xs l)) (s, ii, ee, Just [])
           step (s, ii, ee, Just (y:ys))
             = let RiTirI (T l) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
               in  return $ Yield (TState s (ii:.:RiTirI (F $ VU.fromList y)) (ee:.f xs l)) (s, ii, ee, Just ys)
