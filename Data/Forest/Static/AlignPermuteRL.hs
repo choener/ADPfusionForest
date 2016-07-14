@@ -301,7 +301,7 @@ instance
     = map (\(TState s ii ee) ->
               let RiTirI (T l) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                   cs = children frst VG.! l
-                  fe = if VG.null cs then E (l+1) else F cs
+                  fe = if VG.null cs then E l else F cs
               in  traceShow ("N"::String,cs,fe, f xs l) $ TState s (ii:.:RiTirI fe) (ee:.f xs l) )
     . termStream ts cs us is
     . staticCheck ({- itfe < utfe && -} isTree itfe)

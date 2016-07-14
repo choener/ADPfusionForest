@@ -66,10 +66,10 @@ makeAlgebraProduct ''SigGlobal
 score :: Monad m => Int -> Int -> Int -> SigGlobal m Int Int Info Info
 score matchSc notmatchSc delinSc = SigGlobal
   { done  = \ (Z:.():.()) -> 0 -- traceShow "EEEEEEEEEEEEE" 0
-  , iter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t+f
+  , iter  = \ t f -> {- tSI glb ("TFTFTFTFTF",t,f) $ -} t+f
   , align = \ (Z:.a:.b) f -> tSI glb ("ALIGN",f,a,b) $ f + if label a == label b then matchSc else notmatchSc
-  , indel = \ (Z:.():.b) f -> tSI glb ("INDEL",f,b) $ f + delinSc
-  , delin = \ (Z:.a:.()) f -> tSI glb ("DELIN",f,a) $ f + delinSc
+  , indel = \ (Z:.():.b) f -> {- tSI glb ("INDEL",f,b) $ -} f + delinSc
+  , delin = \ (Z:.a:.()) f -> {- tSI glb ("DELIN",f,a) $ -} f + delinSc
   , h     = SM.foldl' max (-88888)
   }
 {-# Inline score #-}
