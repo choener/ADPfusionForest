@@ -159,9 +159,9 @@ instance Index (TreeIxR p v a t) where
 
 
 instance IndexStream z => IndexStream (z:.TreeIxR Pre v a I) where
-  streamUp   (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamUpMk  p lf ht) (streamUpStep   p llk lf ht) $ streamUp ls hs
-  streamDown (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamUpMk  p lf ht) (streamUpStep   p llk lf ht) $ streamDown ls hs -- STUPID!!!
---  streamDown (ls:.TreeIxR p lf _) (hs:.TreeIxR _ ht _) = flatten (streamDownMk lf ht) (streamDownStep p lf ht) $ streamDown ls hs
+  streamUp   (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamUpMk   p lf ht) (streamUpStep   p llk lf ht) $ streamUp ls hs
+--  streamDown (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamUpMk   p lf ht) (streamUpStep   p llk lf ht) $ streamDown ls hs -- STUPID!!!
+  streamDown (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamDownMk p lf ht) (streamDownStep p llk lf ht) $ streamDown ls hs
   {-# Inline streamUp #-}
 --  {-# Inline streamDown #-}
 
@@ -174,6 +174,11 @@ streamUpMk p lf ht z =
       E ht' = ht
   in  {- trace ("XXX" P.++ show ssf) . -} return $ SE' ht' (z,ssf)
 {-# Inline [0] streamUpMk #-}
+
+streamDownMk p lf ht z =
+  let ssf = reverse $ VG.empty : sortedSubForests p
+  in  return $ Stp (z,ssf)
+{-# Inline [0] streamDownMk #-}
 
 -- |
 
@@ -188,6 +193,8 @@ data StepTFE x
   -- | This encodes that we have an empty forest (@E@), but directly
   -- encodes the highest @Int@-index given via @streamUpMk@.
   | SE' Int x
+  -- | Only for outside calculations!
+  | SEout x
 
 -- | For each index @k@, we can easily first calculate @Epsilon k@. Then we
 -- want to know the tree at index @k@, but this needs knowledge of all
@@ -228,6 +235,26 @@ streamUpStep p lk lf ht (ST (z,x:xs))
 streamUpStep p lk lf ht (SF (z,x:xs))
   = return $ SM.Yield (z:.TreeIxR p lk (F x)) (Stp (z,xs))
 {-# Inline [0] streamUpStep #-}
+
+-- |
+
+-- this is the case of our artificially added size==0 set.
+streamDownStep p lk lf ht (Stp (z,[x]))
+  = let E k = ht
+    in  return $ SM.Yield (z:.TreeIxR p lk (E k)) (Stp (z,[]))
+streamDownStep p lk lf ht (Stp (z,[]))
+  = return $ SM.Done
+streamDownStep p lk lf ht (Stp (z,x:xs))
+  | sz == 1 = return $ SM.Yield (z:.TreeIxR p lk (F x)) (ST (z,x:xs))
+  | sz >= 2 = return $ SM.Yield (z:.TreeIxR p lk (F x)) (Stp (z,xs))
+  where sz = VG.length x
+streamDownStep p lk lf ht (ST (z,x:xs))
+  = return $ SM.Yield (z:.TreeIxR p lk (T i)) (SEout (z,x:xs))
+  where i = VG.head x
+streamDownStep p lk lf ht (SEout (z,x:xs))
+  = return $ SM.Yield (z:.TreeIxR p lk (E i)) (Stp (z,xs))
+  where i = VG.head x
+{-# Inline [0] streamDownStep #-}
 
 {-
 
