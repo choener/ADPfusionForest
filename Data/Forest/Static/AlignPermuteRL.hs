@@ -163,7 +163,7 @@ instance IndexStream z => IndexStream (z:.TreeIxR Pre v a I) where
 --  streamDown (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamUpMk   p lf ht) (streamUpStep   p llk lf ht) $ streamDown ls hs -- STUPID!!!
   streamDown (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamDownMk p lf ht) (streamDownStep p llk lf ht) $ streamDown ls hs
   {-# Inline streamUp #-}
---  {-# Inline streamDown #-}
+  {-# Inline streamDown #-}
 
 -- cull from p the non-needed parts via lf ht
 streamUpMk p lf ht z =
@@ -592,8 +592,63 @@ pardef frst k = maybe (-1) id $ parent frst VG.!? k
 {-# Inline pardef #-}
 
 
-{-
+-- Outside
 
+
+data instance RunningIndex (TreeIxR p v a O) = RiTirO !TFE
+
+
+
+instance IndexStream z => IndexStream (z:.TreeIxR Pre v a O) where
+  streamUp   (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamDownMk   p lf ht) (streamDownStep   p llk lf ht) $ streamDown ls hs
+  streamDown (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamUpMk p lf ht) (streamUpStep p llk lf ht) $ streamUp ls hs
+  {-# Inline streamUp #-}
+  {-# Inline streamDown #-}
+
+
+
+instance RuleContext (TreeIxR p v a O) where
+  type Context (TreeIxR p v a O) = OutsideContext ()
+  initialContext _ = OStatic ()
+  {-# Inline initialContext #-}
+
+
+--Node
+
+instance
+  ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
+  , Show r
+  ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxR p v a O) where
+  termStream (ts:|Node f xs) (cs:.OFirstLeft ()) (us:.TreeIxR _ ul utfe) (is:.TreeIxR frst il itfe)
+    = map (\(TState s ii ee) ->
+              let RiTirO l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+                  p = case l of 
+                        E i  -> i 
+                        F cs -> parent frst VG.! VG.head cs
+              in  TState s (ii:.:RiTirO (T p)) (ee:.f xs p) )
+    . termStream ts cs us is
+    . staticCheck ({- itfe < utfe && -} isOrdfull frst itfe) --instead of isTree ask if it is a full ordered vector of its siblings including itself 
+  {-# Inline termStream #-}
+
+
+instance TermStaticVar (Node r x) (TreeIxR p v a O) where
+  termStaticVar _ sv _ = sv
+  termStreamIndex _ _ (TreeIxR frst i j) = TreeIxR frst i j
+  {-# Inline [0] termStaticVar   #-}
+  {-# Inline [0] termStreamIndex #-}
+
+
+isOrdfull:: (Forest p v a) -> TFE -> Bool 
+isOrdfull frst (F cs)
+  | Just c <- cs VG.!? 0
+  , let p = parent frst VG.! c 
+  , p >= 0
+  = children frst !p == cs
+isOrdfull frst (E i) = VG.null $ children frst VG.! i
+isOrdfull _    _     = False
+
+
+{-
 -- * Outside instances
 
 -- | Outside running index structure requires two local index structures.
