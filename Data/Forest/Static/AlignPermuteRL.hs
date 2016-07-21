@@ -614,7 +614,24 @@ instance RuleContext (TreeIxR p v a O) where
   {-# Inline initialContext #-}
 
 
---Node
+-- | Node
+--
+-- Inside:
+-- @
+-- M     -> n     F
+-- i,T   -> i,T   <ls>,F
+--
+-- where ls = ordered subforest of all children of 'i'
+-- @
+--
+-- Outside:
+-- @
+-- F       -> n     M
+-- <ls>,F  -> i,T   i,T
+-- @
+--
+-- with the condition that the rule is active only if @<ls>@ is indeed the
+-- whole ordered subforest below @i@.
 
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
@@ -752,6 +769,26 @@ instance
     . staticCheck ((getTFEIx ktfe) >=0 && (getTFEIx ktfe) <= (getTFEIx utfe))
     $ mkStream S vs lus is
   {-# INLINE mkStream #-}
+
+
+
+
+
+
+
+
+
+
+
+
+-- |
+--
+-- das wird deletion
+--
+-- Inside
+-- @
+-- T   -> - F
+-- i,? ->   i,?
 
 
 
