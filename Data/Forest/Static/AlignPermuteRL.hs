@@ -643,7 +643,7 @@ isOrdfull frst (F cs)
   | Just c <- cs VG.!? 0
   , let p = parent frst VG.! c 
   , p >= 0
-  = children frst !p == cs
+  = children frst VG.! p == cs
 isOrdfull frst (E i) = VG.null $ children frst VG.! i
 isOrdfull _    _     = False
 
