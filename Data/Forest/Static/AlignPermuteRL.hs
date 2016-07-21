@@ -21,6 +21,7 @@ import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Unboxed as VU
 import           Data.Vector.Instances
+import qualified Data.Vector.Algorithms.Intro as VI
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Set as S
 import           Data.List (subsequences, permutations)
@@ -627,7 +628,7 @@ instance
                         F cs -> parent frst VG.! VG.head cs
               in  TState s (ii:.:RiTirO (T p)) (ee:.f xs p) )
     . termStream ts cs us is
-    . staticCheck ({- itfe < utfe && -} isOrdfull frst itfe) --instead of isTree ask if it is a full ordered vector of its siblings including itself 
+    . staticCheck ({- itfe < utfe && -} isOrdfull frst itfe)
   {-# Inline termStream #-}
 
 
@@ -638,6 +639,7 @@ instance TermStaticVar (Node r x) (TreeIxR p v a O) where
   {-# Inline [0] termStreamIndex #-}
 
 
+
 isOrdfull:: (Forest p v a) -> TFE -> Bool 
 isOrdfull frst (F cs)
   | Just c <- cs VG.!? 0
@@ -646,6 +648,112 @@ isOrdfull frst (F cs)
   = children frst VG.! p == cs
 isOrdfull frst (E i) = VG.null $ children frst VG.! i
 isOrdfull _    _     = False
+{-# Inline isOrdfull   #-}
+
+
+
+-- PermNode
+
+instance
+  ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
+  , Show r
+  ) => TermStream m (TermSymbol ts (PermNode r x)) s (is:.TreeIxR p v a O) where
+  termStream (ts:|PermNode f xs) (cs:.OFirstLeft ()) (us:.TreeIxR _ ul utfe) (is:.TreeIxR frst il itfe)
+    = map (\(TState s ii ee) ->
+              let RiTirO l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+                  p = case l of 
+                        E i  -> i 
+                        F cs -> parent frst VG.! VG.head cs
+              in  TState s (ii:.:RiTirO (T p)) (ee:.f xs p) )
+    . termStream ts cs us is
+    . staticCheck ({- itfe < utfe && -} isPermfull frst itfe) --instead of isTree ask if it is a full ordered vector of its siblings including itself 
+  {-# Inline termStream #-}
+
+
+instance TermStaticVar (PermNode r x) (TreeIxR p v a O) where
+  termStaticVar _ sv _ = sv
+  termStreamIndex _ _ (TreeIxR frst i j) = TreeIxR frst i j
+  {-# Inline [0] termStaticVar   #-}
+  {-# Inline [0] termStreamIndex #-}
+
+
+
+isPermfull:: (Forest p v a) -> TFE -> Bool 
+isPermfull frst (F cs)
+  | Just c <- cs VG.!? 0
+  , let p = parent frst VG.! c 
+  , p >= 0
+  = VG.length (children frst VG.! p) == VG.length cs  -- cs is a subset of the other vector
+isPermfull frst (E i) = VG.null $ children frst VG.! i
+isPermfull _    _     = False
+{-# Inline isPermfull #-}
+
+
+
+-- Epsilon
+
+
+instance
+  ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
+  ) => TermStream m (TermSymbol ts Epsilon) s (is:.TreeIxR p v a O) where
+  termStream (ts:|Epsilon) (cs:.OStatic ()) (us:.TreeIxR _ ul utfe) (is:.TreeIxR frst il itfe)
+    = map (\(TState s ii ee) ->
+              let RiTirO ef = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+              in  TState s (ii:.:RiTirO ef) (ee:.()) )
+    . termStream ts cs us is
+    . staticCheck (case itfe of {F cs -> cs == roots frst; _ -> False}) 
+  {-# Inline termStream #-}
+
+
+instance TermStaticVar Epsilon (TreeIxR p v a O) where
+  termStaticVar _ sv _ = sv
+  termStreamIndex _ _ i = i
+  {-# Inline [0] termStaticVar   #-}
+  {-# Inline [0] termStreamIndex #-}
+
+
+
+--Deletion
+
+
+instance
+  ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
+  ) => TermStream m (TermSymbol ts Deletion) s (is:.TreeIxR p v a O) where
+  termStream (ts:|Deletion) (cs:._) (us:.u) (is:.TreeIxR frst i ii)
+    = map (\(TState s ii ee) ->
+              let RiTirO tfe = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+              in  {- traceShow ("-"::String,l,tf) $ -} TState s (ii:.:RiTirO tfe) (ee:.()) )
+    . termStream ts cs us is
+--    . staticCheck (ii == T)
+  {-# Inline termStream #-}
+
+
+instance TermStaticVar Deletion (TreeIxR p v a O) where
+  termStaticVar _ sv _ = sv
+  termStreamIndex _ _ i = i
+  {-# Inline [0] termStaticVar   #-}
+  {-# Inline [0] termStreamIndex #-}
+
+
+-- Invisible starting symbol
+
+instance (Monad m) => MkStream m S (TreeIxR p v a O) where
+  mkStream S _ (TreeIxR frst ul utfe) (TreeIxR _ kl ktfe)
+    = staticCheck ((getTFEIx ktfe) >=0 && (getTFEIx ktfe) <= (getTFEIx utfe)) . singleton . ElmS $ RiTirO ktfe
+  {-# Inline mkStream #-}
+
+
+instance
+  ( Monad m
+  , MkStream m S is
+  ) => MkStream m S (is:.TreeIxR p v a O) where
+  mkStream S (vs:._) (lus:.TreeIxR frst ul utfe) (is:.TreeIxR _ kl ktfe)
+    = map (\(ElmS zi) -> ElmS $ zi :.: RiTirO ktfe)
+    . staticCheck ((getTFEIx ktfe) >=0 && (getTFEIx ktfe) <= (getTFEIx utfe))
+    $ mkStream S vs lus is
+  {-# INLINE mkStream #-}
+
+
 
 
 {-

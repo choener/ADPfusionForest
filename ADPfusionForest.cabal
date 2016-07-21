@@ -52,6 +52,7 @@ library
                , vector                 >= 0.10     &&  < 0.12
                , vector-instances       >= 3.4
                , vector-th-unbox        >= 0.2      &&  < 0.3
+               , vector-algorithms      >= 0.7      &&  < 0.8
 
   exposed-modules:
     Data.Forest.Static.AlignPermuteRL
