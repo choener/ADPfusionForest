@@ -25,6 +25,7 @@ import qualified Data.Vector.Algorithms.Intro as VI
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Set as S
 import           Data.List (subsequences, permutations)
+import qualified Data.List as L
 import qualified Prelude as P
 
 import           ADP.Fusion
@@ -730,6 +731,18 @@ instance TermStaticVar Epsilon (TreeIxR p v a O) where
 
 
 
+
+
+-- |
+--
+-- das wird deletion
+--
+-- Inside
+-- @
+-- T   -> - F
+-- i,? ->   i,?
+
+
 --Deletion
 
 
@@ -780,16 +793,124 @@ instance
 
 
 
+-- OOE for E and T
 
--- |
---
--- das wird deletion
---
--- Inside
--- @
--- T   -> - F
--- i,? ->   i,?
+data OOEFT x
+  = OOE x !TFE
+  | OOEF x [TFE]
+  | OOF x !TFE
+  | OOFinis
 
+
+
+
+instance
+  ( IndexHdr s x0 i0 us (TreeIxR p v a O) cs c is (TreeIxR p v a O)
+  , MinSize c
+  ) => AddIndexDense s (us:.TreeIxR p v a O) (cs:.c) (is:.TreeIxR p v a O) where
+  addIndexDenseGo (cs:._) (vs:.OStatic ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
+    = map go .addIndexDenseGo cs vs us is
+    where go (SvS s tt ii) =
+            let RiTirO ol = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+            in  SvS s (tt:.TreeIxR frst ul ol) (ii:.:RiTirO ol) -- TODO should set right boundary
+  addIndexDenseGo (cs:._) (vs:.ORightOf ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
+    = flatten mk step . addIndexDenseGo cs vs us is
+    where mk svS = return $ case jtfe of
+                    E _ -> OOE svS jtfe
+                    T _ -> OOE svS jtfe
+                    F _ -> OOF svS jtfe
+          step OOFinis = return Done
+          step (OOE svS@(SvS s tt ii) (E i)) | i < (getTFEIx utfe) = 
+            return $ Yield (SvS s (tt:.TreeIxR frst jl (E i)) (ii:.:RiTirO (E i))) (OOE svS (T i))
+          step (OOE svS@(SvS s tt ii) (T i)) | i < (getTFEIx utfe) = 
+            return $ Yield (SvS s (tt:.TreeIxR frst jl (T i)) (ii:.:RiTirO (T i))) (OOEF svS (genPerm frst i)) 
+          step (OOEF svS@(SvS s tt ii) []) = return Done
+          step (OOEF svS@(SvS s tt ii) (F i:is)) = 
+            return $ Yield (SvS s (tt:.TreeIxR frst jl (F i)) (ii:.:RiTirO (F i))) (OOEF svS is) 
+          step (OOF svS@(SvS s tt ii) (F i)) = 
+            return $ Yield (SvS s (tt:.TreeIxR frst jl (F i)) (ii:.:RiTirO (E (getTFEIx utfe)))) OOFinis 
+          {-# Inline [0] mk #-}
+          {-# Inline [0] step #-}
+  {-# Inline addIndexDenseGo #-}
+
+
+
+genPerm frst i
+  | let p = parent frst VG.! i
+  , p >= 0
+  , let cs = children frst VG.! p
+  = L.map (F. VG.fromList) . L.map (i:) . L.concatMap permutations . subsequences . L.delete i $ VG.toList cs 
+genPerm _ _ = []
+{-# Inline genPerm #-}
+
+
+
+
+data OIEFT x
+  = OIEE x !TFE
+  | OIET x !TFE
+  | OIEF x [TFE]
+  | OIT x !TFE
+  | OIFE x !TFE
+  | OIFT x !(VU.Vector Int) [Int]
+  | OIFinis
+
+
+instance
+  ( IndexHdr s x0 i0 us (TreeIxR p v a I) cs c is (TreeIxR p v a O)
+  , MinSize c
+  ) => AddIndexDense s (us:.TreeIxR p v a I) (cs:.c) (is:.TreeIxR p v a O) where
+  addIndexDenseGo (cs:._) (vs:.OStatic ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
+    = map go .addIndexDenseGo cs vs us is
+    where go (SvS s tt ii) =
+            let RiTirO lo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+            in  SvS s (tt:.TreeIxR frst jl lo) (ii:.:RiTirO lo) -- TODO should set right boundary
+  addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
+    = flatten mk step . addIndexDenseGo cs vs us is
+    where mk svS@(SvS s tt ii) =
+            let RiTirO lo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
+            in  return $ case lo of
+                  E _ -> OIEE svS lo
+                  F _ -> OIFE svS lo
+                  T _ -> OIT svS lo
+          step OIFinis = return Done
+          step (OIEE svS@(SvS s tt ii) (E i)) | i < (getTFEIx utfe) =
+            return $ Yield (SvS s (tt:.TreeIxR frst jl (E i)) (ii:.:RiTirO (E i))) (OIET svS (E i))
+          step (OIEE svS@(SvS s tt ii) (E i)) = return $ Skip (OIET svS (E i))
+          step (OIET svS@(SvS s tt ii) (E i)) | Just l <- leftSibling (rightMostLeaf frst (getTFEIx utfe)) frst i =
+            return $ Yield (SvS s (tt:.TreeIxR frst jl (T l)) (ii:.:RiTirO (T l))) 
+                           (OIEF svS $ if i == (getTFEIx utfe) then (L.map F $ sortedSubForests frst) else [])
+          step (OIET svS@(SvS s tt ii) (E i)) = return Done
+          step (OIEF svS@(SvS s tt ii) []) = return Done
+          step (OIEF svS@(SvS s tt ii) (x:xs)) =
+            return $ Yield (SvS s (tt:.TreeIxR frst jl x) (ii:.:RiTirO x)) (OIEF svS xs) 
+          step (OIT svS@(SvS s tt ii) (T i)) =
+            return $ Yield (SvS s (tt:.TreeIxR frst jl (E i)) (ii:.:RiTirO (T i))) OIFinis
+          step (OIFE svS@(SvS s tt ii) (F i)) =
+            return $ Yield (SvS s (tt:.TreeIxR frst jl (E $ VG.head i)) (ii:.:RiTirO (F i))) (OIFT svS i $ genTrees frst i) 
+          step (OIFT svS@(SvS s tt ii) ss []) = return Done
+          step (OIFT svS@(SvS s tt ii) ss (x:xs)) =
+            return $ Yield (SvS s (tt:.TreeIxR frst jl (T x)) (ii:.:RiTirO (F $ x `VG.cons` ss))) (OIFT svS ss xs) 
+          {-# Inline [0] mk #-}
+          {-# Inline [0] step #-}
+  {-# Inline addIndexDenseGo #-}
+
+
+
+genTrees frst is = rs
+  where 
+    i = VG.head is
+    p = parent frst VG.! i
+    cs = if p >= 0 then children frst VG.! p else roots frst
+    rs = VG.toList $ VG.filter (`VG.notElem` is) cs
+{-# Inline genTrees #-}
+
+
+leftSibling d frst k 
+  | k >= VG.length (children frst)  = Just d
+  | Just l <- lsib frst VG.!? k = Just l
+  | otherwise = Nothing
+{-# Inline leftSibling #-}
 
 
 
