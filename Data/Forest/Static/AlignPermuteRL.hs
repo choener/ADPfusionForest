@@ -914,6 +914,75 @@ leftSibling d frst k
 
 
 
+
+
+-- * Complemented instances
+
+-- | Outside running index structure requires two local index structures.
+-- One is for the inside symbols, one for the outside symbol.
+
+data instance RunningIndex (TreeIxR p v a C) = RiTirC !TFE
+
+-- | Outside works in the opposite direction.
+--
+
+instance IndexStream z => IndexStream (z:.TreeIxR p v a C) where
+  streamUp   (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamUpMk p lf ht) (streamUpStep   p llk lf ht) $ streamUp ls hs
+  streamDown (ls:.TreeIxR p llk lf) (hs:.TreeIxR _ _ ht) = flatten (streamDownMk p lf ht) (streamDownStep p llk lf ht) $ streamDown ls hs
+  {-# Inline streamUp #-}
+  {-# Inline streamDown #-}
+
+instance RuleContext (TreeIxR p v a C) where
+  type Context (TreeIxR p v a C) = ComplementContext
+  initialContext _ = Complemented
+  {-# Inline initialContext #-}
+
+
+
+-- Invisible starting symbol
+
+instance (Monad m) => MkStream m S (TreeIxR p v a C) where
+  mkStream S _ (TreeIxR frst lk uu) (TreeIxR _ _ kt)
+    = staticCheck (let k = getTFEIx kt;u = getTFEIx uu in k >=0 && k<= u) . singleton . ElmS $ RiTirC kt
+  {-# Inline mkStream #-}
+
+instance
+  ( Monad m
+  , MkStream m S is
+  ) => MkStream m S (is:.TreeIxR p v a C) where
+  mkStream S (vs:._) (lus:.TreeIxR frst lk uu) (is:.TreeIxR _ _ kt)
+    = map (\(ElmS zi) -> ElmS $ zi :.: RiTirC kt)
+    . staticCheck (let k = getTFEIx kt;u = getTFEIx uu in k >=0 && k<= u)
+    $ mkStream S vs lus is
+  {-# INLINE mkStream #-}
+
+
+
+instance
+  ( IndexHdr s x0 i0 us (TreeIxR p v a I) cs c is (TreeIxR p v a C)
+  , MinSize c
+  ) => AddIndexDense s (us:.TreeIxR p v a I) (cs:.c) (is:.TreeIxR p v a C) where
+  addIndexDenseGo (cs:._) (vs:.Complemented) (us:.TreeIxR frst lk v) (is:.TreeIxR _ _ j)
+    = map go .addIndexDenseGo cs vs us is
+    where go (SvS s tt ii) =
+            let RiTirC tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a C))
+            in  SvS s (tt:.TreeIxR frst lk tf) (ii:.:RiTirC tf)
+
+instance
+  ( IndexHdr s x0 i0 us (TreeIxR p v a O) cs c is (TreeIxR p v a C)
+  , MinSize c
+  ) => AddIndexDense s (us:.TreeIxR p v a O) (cs:.c) (is:.TreeIxR p v a C) where
+  addIndexDenseGo (cs:._) (vs:.Complemented) (us:.TreeIxR frst lk v) (is:.TreeIxR _ _ j)
+    = map go .addIndexDenseGo cs vs us is
+    where go (SvS s tt ii) =
+            let RiTirC tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a C))
+            in  SvS s (tt:.TreeIxR frst lk tf) (ii:.:RiTirC tf)
+
+
+
+
+
+
 {-
 -- * Outside instances
 
