@@ -18,9 +18,8 @@ import Biobase.Newick
 
 import           Data.Forest.Static
 import           Data.Forest.Static.Node
-import           ADP.Fusion
+import           ADP.Fusion.Core
 import           Data.PrimitiveArray hiding (map)
-import           ADP.Fusion.SynVar.Indices
 
 
 data TreeIxL p v a t = TreeIxL !(Forest p v a) !(VU.Vector Int) !Int !Int

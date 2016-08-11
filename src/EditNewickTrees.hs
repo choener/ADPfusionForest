@@ -15,7 +15,7 @@ import           System.Exit (exitFailure)
 import           Text.Printf
 import qualified Data.Text as Text
 
-import           ADP.Fusion
+import           ADP.Fusion.Core
 import           Biobase.Newick
 import           Data.Forest.Static (TreeOrder(..),Forest)
 import           Data.PrimitiveArray as PA hiding (map)

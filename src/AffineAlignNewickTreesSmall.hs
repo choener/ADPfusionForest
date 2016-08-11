@@ -20,7 +20,7 @@ import           System.FilePath
 import           Text.Printf
 import           Unsafe.Coerce
 
-import           ADP.Fusion
+import           ADP.Fusion.Core
 import           Biobase.Newick
 import           Data.Forest.Static (TreeOrder(..),Forest)
 import           Data.PrimitiveArray as PA hiding (map)

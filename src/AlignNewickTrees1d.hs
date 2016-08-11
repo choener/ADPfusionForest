@@ -7,7 +7,7 @@ import qualified Data.Tree as T
 import qualified Data.Vector as V
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 
-import           ADP.Fusion
+import           ADP.Fusion.Core
 import           Biobase.Newick
 import           Data.Forest.Static (TreeOrder(..),Forest)
 import           Data.PrimitiveArray as PA hiding (map)

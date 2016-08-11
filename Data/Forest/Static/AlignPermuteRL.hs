@@ -28,8 +28,7 @@ import           Data.List (subsequences, permutations)
 import qualified Data.List as L
 import qualified Prelude as P
 
-import           ADP.Fusion
-import           ADP.Fusion.SynVar.Indices
+import           ADP.Fusion.Core
 import           Data.Forest.Static
 import           Data.PrimitiveArray hiding (map)
 

@@ -19,8 +19,7 @@ import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Unboxed as VU
 
-import           ADP.Fusion
-import           ADP.Fusion.SynVar.Indices
+import           ADP.Fusion.Core
 import           Data.Forest.Static
 import           Data.PrimitiveArray hiding (map)
 

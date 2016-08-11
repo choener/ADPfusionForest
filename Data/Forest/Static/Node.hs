@@ -4,7 +4,7 @@ module Data.Forest.Static.Node where
 import           Data.Strict.Tuple
 import qualified Data.Vector.Generic as VG
 
-import           ADP.Fusion
+import           ADP.Fusion.Core
 import           Data.PrimitiveArray
 
 
