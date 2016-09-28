@@ -18,6 +18,7 @@ import qualified Data.Vector.Unboxed as VU
 import           ADP.Fusion.Core
 import           Data.Forest.Static
 import           Data.PrimitiveArray hiding (map)
+import           Math.TriangularNumbers
 
 import           Data.Forest.Static.Node
 

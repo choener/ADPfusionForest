@@ -1,0 +1,11 @@
+packages: .
+          ../Lib-PrimitiveArray
+          ../Lib-PrimitiveArray-Pretty
+          ../Lib-OrderedBits
+          ../Lib-DPutils
+          ../Lib-GrammarProducts
+          ../Lib-FormalGrammars
+          ../Lib-ForestStructures
+          ../Lib-ADPfusion
+          ../Lib-BiobaseNewick
+          ../../other/vector-instances
