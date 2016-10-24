@@ -1,11 +1,14 @@
 packages: .
-          ../Lib-PrimitiveArray
-          ../Lib-PrimitiveArray-Pretty
-          ../Lib-OrderedBits
-          ../Lib-DPutils
-          ../Lib-GrammarProducts
-          ../Lib-FormalGrammars
-          ../Lib-ForestStructures
           ../Lib-ADPfusion
           ../Lib-BiobaseNewick
+          ../Lib-DPutils
+          ../Lib-ForestStructures
+          ../Lib-FormalGrammars
+          ../Lib-GrammarProducts
+          ../Lib-OrderedBits
+          ../Lib-PrimitiveArray
+          ../Lib-PrimitiveArray-Pretty
           ../../other/vector-instances
+
+package ADPfusionForest
+  flags: examples

@@ -1,5 +1,5 @@
 
-module Data.Forest.Static.Node where
+module ADP.Fusion.Term.Node.Type where
 
 import           Data.Strict.Tuple
 import qualified Data.Vector.Generic as VG
