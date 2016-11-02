@@ -1,5 +1,5 @@
 
-module Data.Forest.Static.EditLL where
+module ADP.Fusion.Core.ForestEdit.LeftLinear where
 
 import           Data.Either (either)
 import           Data.Graph.Inductive.Basic
@@ -20,7 +20,7 @@ import           Data.Forest.Static
 import           Data.PrimitiveArray hiding (map)
 import           Math.TriangularNumbers
 
-import           Data.Forest.Static.Node
+import           ADP.Fusion.Term.Node.Type
 
 
 

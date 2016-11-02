@@ -17,8 +17,7 @@ import           Data.PrimitiveArray as PA hiding (map)
 import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
 
-import           Data.Forest.Static.AlignRL
-import           Data.Forest.Static.Node
+import           ADP.Fusion.Forest.Align.RL
 
 
 

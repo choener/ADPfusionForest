@@ -22,8 +22,9 @@ import           Data.PrimitiveArray as PA hiding (map)
 import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
 
-import           Data.Forest.Static.EditLL
-import           Data.Forest.Static.Node
+import           ADP.Fusion.Forest.Edit.LL
+
+
 
 [formalLanguage|
 Verbose

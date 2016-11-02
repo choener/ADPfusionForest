@@ -15,7 +15,7 @@ import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
 import           Data.Forest.Static.Node
 
-import           Data.Forest.Static.AlignRL
+import           ADP.Fusion.Forest
 
 
 

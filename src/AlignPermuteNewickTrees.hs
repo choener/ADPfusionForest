@@ -28,8 +28,7 @@ import           Diagrams.TwoD.ProbabilityGrid
 import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
 
-import           Data.Forest.Static.AlignPermuteRL
-import           Data.Forest.Static.Node
+import           ADP.Fusion.Forest
 
 
 

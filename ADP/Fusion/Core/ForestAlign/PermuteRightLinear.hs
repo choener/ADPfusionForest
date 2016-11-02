@@ -2,7 +2,7 @@
 -- | Data structures and instances to combine efficient 'Forest' structures
 -- with @ADPfusion@.
 
-module Data.Forest.Static.AlignPermuteRL where
+module ADP.Fusion.Core.ForestAlign.PermuteRightLinear where
 
 import qualified Data.List as L
 import           Control.Exception (assert)
@@ -32,7 +32,7 @@ import           ADP.Fusion.Core
 import           Data.Forest.Static
 import           Data.PrimitiveArray hiding (map)
 
-import           Data.Forest.Static.Node
+import           ADP.Fusion.Term.Node.Type
 
 -- HETEROGEN
 
