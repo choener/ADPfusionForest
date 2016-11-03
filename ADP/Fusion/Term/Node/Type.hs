@@ -36,7 +36,15 @@ type instance TermArg (Node r x) = r
 
 
 
--- | TODO Should return permutation being used as well
+-- | TODO Should return permutation being used as well This means we have
+-- a vector @v@ and a permutation @p@ on @[1 .. |v|]@. We should apply @p@
+-- to @v@ yielding @v'@, the permutation of @v@. @PermNode@ should then
+-- hold on to the pair @(v',p)@. This allows us to observe the permutation
+-- directly via @v'@, but also consider the applied @p@. This is useful for
+-- considering what the "cost" of @p@ should be. Say, given @[1,2,3,4]@
+-- then the identity permutation is cost-free, while @[2,1,3,4]@ could be
+-- less costly than @[4,1,3,2]@, but more costly than @[4,3,2,1]@. This
+-- will depend on the user but should be supported.
 
 data PermNode r x where
   PermNode :: VG.Vector v x

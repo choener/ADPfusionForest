@@ -15,10 +15,13 @@ tested-with:    GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.1
 synopsis:       Dynamic programming on tree and forest structures
 description:
                 ADPfusion for formal languages on tree and forest structures.
-                This library connects @ForestStructures@, a library which
-                defines efficient, tree-like structures and @ADPfusion@. The
-                result is the ability to easily write formal grammars which act
-                on input trees (as compared to the more common input strings).
+                This library connects
+                <http://hackage.haskell.org/package/ForestStructures @ForestStructures@>,
+                a library which defines efficient, tree-like structures and
+                <http://hackage.haskell.org/package/ADPfusion @ADPfusion@>.
+                The result is the ability to easily write formal grammars which
+                act on input trees (as compared to the more common input
+                strings).
 
 
 
@@ -58,14 +61,23 @@ library
                , PrimitiveArray         == 0.7.2.*
 
   exposed-modules:
-    ADP.Fusion.Core.ForestAlign.PermuteRightLinear
-    ADP.Fusion.Core.ForestAlign.RightLinear
-    ADP.Fusion.Core.ForestEdit.LeftLinear
     ADP.Fusion.Forest.Align.PRL
     ADP.Fusion.Forest.Align.RL
     ADP.Fusion.Forest.Edit.LL
+    --
+    ADP.Fusion.Core.ForestAlign.PermuteRightLinear
+    ADP.Fusion.Core.ForestAlign.RightLinear
+    ADP.Fusion.Term.Epsilon.ForestAlign.PermuteRightLinear
+    ADP.Fusion.Term.Epsilon.ForestAlign.RightLinear
+    ADP.Fusion.Term.Node.ForestAlign.PermuteRightLinear
     ADP.Fusion.Term.Node.ForestAlign.RightLinear
     ADP.Fusion.Term.Node.Type
+    --
+    ADP.Fusion.Core.ForestEdit.LeftLinear
+    ADP.Fusion.SynVar.Indices.ForestEdit.LeftLinear
+    ADP.Fusion.Term.Deletion.ForestEdit.LeftLinear
+    ADP.Fusion.Term.Epsilon.ForestEdit.LeftLinear
+    ADP.Fusion.Term.Node.ForestEdit.LeftLinear
   default-language:
     Haskell2010
   default-extensions: AllowAmbiguousTypes
