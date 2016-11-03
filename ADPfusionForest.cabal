@@ -74,9 +74,7 @@ library
     -- wip
     ADP.Fusion.Core.ForestAlign.PermuteRightLinear
     ADP.Fusion.Term.Epsilon.ForestAlign.PermuteRightLinear
-    ADP.Fusion.Term.Epsilon.ForestAlign.RightLinear
     ADP.Fusion.Term.Node.ForestAlign.PermuteRightLinear
-    ADP.Fusion.Term.Node.ForestAlign.RightLinear
     -- current
     ADP.Fusion.Core.ForestAlign.RightLinear
     ADP.Fusion.Term.Epsilon.ForestAlign.RightLinear
@@ -101,7 +99,7 @@ library
                     , TypeOperators
                     , UndecidableInstances
   ghc-options:
-    -O0
+    -O2
     -funbox-strict-fields
 
 
@@ -147,7 +145,7 @@ executable AlignNewickTrees
                     , TypeFamilies
                     , TypeOperators
   ghc-options:
-    -O0
+    -O2
     -funbox-strict-fields
 
 
@@ -193,7 +191,7 @@ executable AffineAlignNewickTreesSmall
                     , TypeFamilies
                     , TypeOperators
   ghc-options:
-    -O0
+    -O2
     -funbox-strict-fields
 
 
@@ -239,7 +237,7 @@ executable EditNewickTrees
                     , TypeFamilies
                     , TypeOperators
   ghc-options:
-    -O0
+    -O2
     -funbox-strict-fields
 
 
@@ -250,7 +248,7 @@ test-suite properties
   main-is:
     properties.hs
   ghc-options:
-    -threaded -rtsopts -with-rtsopts=-N -O0 -funbox-strict-fields
+    -threaded -rtsopts -with-rtsopts=-N -O2 -funbox-strict-fields
   hs-source-dirs:
     tests
   default-language:
@@ -279,7 +277,7 @@ benchmark benchmark
   type:
     exitcode-stdio-1.0
   ghc-options:
-    -O0
+    -O2
 
 
 

@@ -12,3 +12,6 @@ packages: .
 
 package ADPfusionForest
   flags: examples
+  ghc-options: -O0
+  optimization: False
+
