@@ -13,6 +13,8 @@ import ADP.Fusion.Core.ForestEdit.LeftLinear
 
 
 
+-- * Common
+
 instance
   ( TmkCtx1 m ls Epsilon (TreeIxL p v a t)
   ) => MkStream m (ls :!: Epsilon) (TreeIxL p v a t) where
@@ -22,6 +24,9 @@ instance
     $ mkStream ls (termStaticVar Epsilon sv is) us (termStreamIndex Epsilon sv is)
   {-# Inline mkStream #-}
 
+
+
+-- * Inside
 
 instance
   ( TstCtx m ts s x0 i0 is (TreeIxL p v a I)
@@ -40,4 +45,24 @@ instance TermStaticVar Epsilon (TreeIxL p v a I) where
   {-# Inline [0] termStreamIndex #-}
 
 
+
+-- * Outside
+
+instance
+  ( TstCtx m ts s x0 i0 is (TreeIxL Post v a O)
+  ) => TermStream m (TermSymbol ts Epsilon) s (is:.TreeIxL Post v a O) where
+  termStream (ts:|Epsilon) (cs:.OStatic ()) (us:.TreeIxL _ _ l u) (is:.TreeIxL frst _ i j)
+    = map (\(TState s ii ee) ->
+              let oo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
+              in  TState s (ii:.:oo) (ee:.()) )
+    . termStream ts cs us is
+    . staticCheck (l==i && u==j)
+  {-# Inline termStream #-}
+
+
+instance TermStaticVar Epsilon (TreeIxL Post v a O) where
+  termStaticVar _ sv _ = sv
+  termStreamIndex _ _ i = i
+  {-# Inline [0] termStaticVar   #-}
+  {-# Inline [0] termStreamIndex #-}
 
