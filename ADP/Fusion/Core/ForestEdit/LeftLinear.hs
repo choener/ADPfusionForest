@@ -202,5 +202,42 @@ instance
 
 -- * Complement
 
--- TODO!
+data instance RunningIndex (TreeIxL p v a C) = RiTilC !Int !Int
+
+instance IndexStream z => IndexStream (z:.TreeIxL p v a C) where
+  streamUp   (ls:.TreeIxL p c lf _) (hs:.TreeIxL _ _ _ ht) = flatten (streamUpMk lf  ht) (streamUpStep  p c lf ht) $ streamUp ls hs
+  streamDown (ls:.TreeIxL p c lf _) (hs:.TreeIxL _ _ _ ht) = flatten (streamDownMk lf ht) (streamDownStep p c lf ht) $ streamDown ls hs
+  {-# Inline streamUp #-}
+  {-# Inline streamDown #-}
+
+instance RuleContext (TreeIxL p v a C) where
+  type Context (TreeIxL p v a C) = ComplementContext
+  initialContext _ = Complemented ()
+  {-# Inline initialContext #-}
+
+
+
+-- Invisible starting symbol
+
+instance (Monad m) => MkStream m S (TreeIxL p v a C) where
+  mkStream S (IStatic ()) (TreeIxL frst _ l u) (TreeIxL _ _ i j)
+    = staticCheck (i>=0 && i==j && j<=u) . singleton . ElmS $ RiTilI i j
+  mkStream S (IVariable ()) (TreeIxL frst _ l u) (TreeIxL _ _ i j)
+    = staticCheck (i>=0 && i<=j && j<=u) . singleton . ElmS $ RiTilI i j
+  {-# Inline mkStream #-}
+
+
+instance
+  ( Monad m
+  , MkStream m S is
+  ) => MkStream m S (is:.TreeIxL p v a C) where
+  mkStream S (vs:.IStatic()) (lus:.TreeIxL frst _ l u) (is:.TreeIxL _ _ i j)
+    = map (\(ElmS zi) -> ElmS $ zi :.: RiTilI i j)
+    . staticCheck (i>=0 && i==j && j<=u)
+    $ mkStream S vs lus is
+  mkStream S (vs:.IVariable()) (lus:.TreeIxL frst _ l u) (is:.TreeIxL _ _ i j)
+    = map (\(ElmS zi) -> ElmS $ zi :.: RiTilI i j)
+    . staticCheck (i>=0 && i<=j && j<=u)
+    $ mkStream S vs lus is
+  {-# INLINE mkStream #-}
 

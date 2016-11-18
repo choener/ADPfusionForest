@@ -128,3 +128,41 @@ instance (MinSize c) => TableStaticVar (u I) c (TreeIxL Post v a O) where
   {-# Inline [0] tableStaticVar #-}
   {-# Inline [0] tableStreamIndex #-}
 
+
+
+-- * Complement
+
+instance
+  ( IndexHdr s x0 i0 us (TreeIxL Post v a I) cs c is (TreeIxL Post v a C)
+  , MinSize c
+  ) => AddIndexDense s (us:.TreeIxL Post v a I) (cs:.c) (is:.TreeIxL Post v a C) where
+  addIndexDenseGo (cs:._) (vs:.Complemented) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
+    = map go . addIndexDenseGo cs vs us is
+    where
+      go (SvS s tt ii) = SvS s (tt:.TreeIxL frst lc i j) (ii:.:RiTilC i j)
+  {-# Inline addIndexDenseGo #-}
+
+instance
+  ( IndexHdr s x0 i0 us (TreeIxL Post v a O) cs c is (TreeIxL Post v a C)
+  , MinSize c
+  ) => AddIndexDense s (us:.TreeIxL Post v a O) (cs:.c) (is:.TreeIxL Post v a C) where
+  addIndexDenseGo (cs:._) (vs:.Complemented) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
+    = map go . addIndexDenseGo cs vs us is
+    where
+      go (SvS s tt ii) = SvS s (tt:.TreeIxL frst lc i j) (ii:.:RiTilC i j)
+  {-# Inline addIndexDenseGo #-}
+
+
+
+instance (MinSize c) => TableStaticVar (u I) c (TreeIxL Post v a C) where 
+  tableStaticVar _ _ z             _ = z
+  tableStreamIndex _ c _ = id
+  {-# Inline [0] tableStaticVar #-}
+  {-# Inline [0] tableStreamIndex #-}
+
+instance (MinSize c) => TableStaticVar (u O) c (TreeIxL Post v a C) where 
+  tableStaticVar _ _ z             _ = z
+  tableStreamIndex _ c _ = id
+  {-# Inline [0] tableStaticVar #-}
+  {-# Inline [0] tableStreamIndex #-}
+
