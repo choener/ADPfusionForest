@@ -212,7 +212,7 @@ instance IndexStream z => IndexStream (z:.TreeIxL p v a C) where
 
 instance RuleContext (TreeIxL p v a C) where
   type Context (TreeIxL p v a C) = ComplementContext
-  initialContext _ = Complemented ()
+  initialContext _ = Complemented
   {-# Inline initialContext #-}
 
 
@@ -220,10 +220,8 @@ instance RuleContext (TreeIxL p v a C) where
 -- Invisible starting symbol
 
 instance (Monad m) => MkStream m S (TreeIxL p v a C) where
-  mkStream S (IStatic ()) (TreeIxL frst _ l u) (TreeIxL _ _ i j)
-    = staticCheck (i>=0 && i==j && j<=u) . singleton . ElmS $ RiTilI i j
-  mkStream S (IVariable ()) (TreeIxL frst _ l u) (TreeIxL _ _ i j)
-    = staticCheck (i>=0 && i<=j && j<=u) . singleton . ElmS $ RiTilI i j
+  mkStream S Complemented (TreeIxL frst _ l u) (TreeIxL _ _ i j)
+    = staticCheck (i>=0 && i==j && j<=u) . singleton . ElmS $ RiTilC i j
   {-# Inline mkStream #-}
 
 
@@ -231,13 +229,9 @@ instance
   ( Monad m
   , MkStream m S is
   ) => MkStream m S (is:.TreeIxL p v a C) where
-  mkStream S (vs:.IStatic()) (lus:.TreeIxL frst _ l u) (is:.TreeIxL _ _ i j)
-    = map (\(ElmS zi) -> ElmS $ zi :.: RiTilI i j)
+  mkStream S (vs:.Complemented) (lus:.TreeIxL frst _ l u) (is:.TreeIxL _ _ i j)
+    = map (\(ElmS zi) -> ElmS $ zi :.: RiTilC i j)
     . staticCheck (i>=0 && i==j && j<=u)
-    $ mkStream S vs lus is
-  mkStream S (vs:.IVariable()) (lus:.TreeIxL frst _ l u) (is:.TreeIxL _ _ i j)
-    = map (\(ElmS zi) -> ElmS $ zi :.: RiTilI i j)
-    . staticCheck (i>=0 && i<=j && j<=u)
     $ mkStream S vs lus is
   {-# INLINE mkStream #-}
 

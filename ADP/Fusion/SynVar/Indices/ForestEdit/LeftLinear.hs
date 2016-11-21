@@ -77,7 +77,7 @@ instance
   {-# Inline addIndexDenseGo #-}
 
 instance (MinSize c) => TableStaticVar (u O) c (TreeIxL Post v a O) where 
-  tableStaticVar _ _ (OStatic  ()) _ = ORightOf   ()
+  tableStaticVar _ _ (OStatic  ()) _ = OFirstLeft ()
   tableStaticVar _ _ (ORightOf ()) _ = OFirstLeft ()
   tableStaticVar _ _ z             _ = z
   tableStreamIndex _ c _ = id
@@ -118,6 +118,7 @@ instance
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
         in SvS s (tt:.TreeIxL frst lc 0 i) (ii:.:RiTilO 0 i ooi ooj)
+  addIndexDenseGo _ (vs:.bang) _ _ = error $ show bang
   {-# Inline addIndexDenseGo #-}
 
 instance (MinSize c) => TableStaticVar (u I) c (TreeIxL Post v a O) where 
