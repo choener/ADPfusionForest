@@ -88,12 +88,12 @@ pretty' = SigGlobal
 
 part :: Monad m => Log Double -> Log Double -> Log Double -> SigGlobal m (Log Double) (Log Double) Info Info
 part mat mis ndl = SigGlobal
-  { gAlign = \ f ( Z:.n0:.n1) -> f * if label n0 == label n1 then mat else mis
-  , gDone = \(Z:.():.()) -> 1
-  , gIter = \ f t -> f * t
-  , gIndel = \ f (Z:.():.n1) -> f * ndl
-  , gDelin = \ f (Z:.n0:.()) -> f * ndl
-  , gH = SM.foldl' (+) 0.0000001
+  { gAlign = \ f ( Z:.n0:.n1) -> let z = f * if label n0 == label n1 then mat else mis in traceShow ("align",f,n0,n1,mat,mis,z) $ z
+  , gDone = \(Z:.():.()) -> traceShow ("done", 1) $ 1
+  , gIter = \ f t -> traceShow ("iter", f, t, f * t) $ f * t
+  , gIndel = \ f (Z:.():.n1) -> traceShow ("indel", f, n1, ndl) $ f * ndl
+  , gDelin = \ f (Z:.n0:.()) -> traceShow ("delin", f, n0, ndl) $ f * ndl
+  , gH = SM.foldl' (+) 0.000000
 }
 {-# Inline part #-}
 
@@ -220,7 +220,7 @@ oOptions = Options
   , probFile = def
   , probFileTy = EPS
   , linearScale = False
-  , temperature = 0.1
+  , temperature = 1
   }
 
 main :: IO ()
@@ -230,7 +230,7 @@ main = do
     putStrLn "give at least two Newick files on the command line"
     exitFailure
   let ts = init $ init $ tails inputFiles
-      f z = Exp $ z/temperature 
+      expScore z = Exp $ z/temperature 
   forM_ ts $ \(n1:hs) -> do
     forM_ hs $ \n2 -> do
       let fff x = either error (F.forestPost . map getNewickTree) $ newicksFromText $ Text.pack x
@@ -246,34 +246,46 @@ main = do
         forM_ b $ \(Info l _, Info r _) -> printf "%1s.%1s  " (Text.unpack l) (Text.unpack r)
         putStrLn ""
       unless (null probFile) $ do
-        runAlignIO (if linearScale then FWlinear else FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (f matchSc) (f notmatchSc) (f delinSc) (Exp temperature )
+        runAlignIO (if linearScale then FWlinear else FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (expScore matchSc) (expScore notmatchSc) (expScore delinSc) (Exp temperature )
 
 runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature = do
   let f x = either error (F.forestPost . map getNewickTree) $ newicksFromText x
       t1 = f $ Text.pack t1'
       t2 = f $ Text.pack t2'
-  let (inn,out,_) = runIO t1 t2 matchSc mismatchSc indelSc temperature -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (inn,out,zzz) = runIO t1 t2 matchSc mismatchSc indelSc temperature -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  print zzz
   let (Z:.TW (ITbl _ _ _ ift) _ :. TW (ITbl _ _ _ itt) _) = inn
   let (Z:.TW (ITbl _ _ _ oft) _ :. TW (ITbl _ _ _ ott) _) = out
   let (Z:.(TreeIxL frst1 kr1 lb1 _):.(TreeIxL frst2 kr2 lb2 _), Z:.(TreeIxL _ _ _ ub1):.(TreeIxL _ _ _ ub2)) = bounds oft
   let ix = (Z:.TreeIxL frst1 kr1 lb1 ub1:.TreeIxL frst2 kr2 lb2 ub2)
   let sc = ift ! ix
+  let sc2 = Prelude.sum [ oft ! (Z:.TreeIxL frst1 kr1 b1 b1 :. TreeIxL frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  print sc
+  print sc2
   let ps = map (\(k,k1,k2) ->
             let k' = unsafeCoerce k
             in  ( k1
                 , k2
-                , traceShow (itt!k, ott!k') $ ((itt!k) * (ott!k') / sc)
+                , ""
+                , ift!k
+                , oft!k'
+                , ""
+                , itt!k
+                , ott!k'
+                , (itt!k) * (ott!k') / sc
+                , {- traceShow (itt!k, ott!k') $ -} max 0 . min 1.2 $ ((itt!k) * (ott!k') / sc)
                 , (maybe "-" label $ F.label t1 VG.!? k1)
                 , (maybe "-" label $ F.label t2 VG.!? k2)
-                )) [ (Z:.TreeIxL frst1 kr1 0 k1 :.TreeIxL frst2 kr2 0 k2,k1,k2) | k1 <- [0 .. ub1 - 1], k2 <- [0 .. ub2 - 1] ]
+                )) [ (Z:.TreeIxL frst1 kr1 (kr1 VG.! k1) (k1+1) :.TreeIxL frst2 kr2 (kr2 VG.! k2) (k2+1),k1,k2) | k1 <- [0 .. ub1-1], k2 <- [0 .. ub2-1] ]
   --
-  let gsc = map (\(k1,k2,sc,l1,l2) -> sc) ps
+  let gsc = map (\(k1,k2,"",_,_,"",_,_,_,sc,l1,l2) -> sc) ps
   let fillText [] = " "
       fillText xs = xs
   let gl1 = map (\k1 -> fillText . Text.unpack $ (maybe "-" label $ F.label t1 VG.!? k1)) [lb1 .. ub1 - 1]
   let gl2 = map (\k2 -> fillText . Text.unpack $ (maybe "-" label $ F.label t2 VG.!? k2)) [lb2 .. ub2 - 1]
   print $ (ub1,ub2)
   mapM_ print ps
+  print itt
   case probFileTy of
          SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
          EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc

@@ -4,6 +4,7 @@ module ADP.Fusion.SynVar.Indices.ForestEdit.LeftLinear where
 import           Data.Vector.Fusion.Stream.Monadic hiding (flatten)
 import           Prelude hiding (map)
 import qualified Data.Vector.Generic as VG
+import           Debug.Trace
 
 import           ADP.Fusion.Core
 import           Data.Forest.Static
@@ -58,7 +59,7 @@ instance
     where
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-        in  SvS s (tt:.TreeIxL frst lc 0 j) (ii:.:RiTilO i j 0 j)
+        in  traceShow (ss "O/O/st",ooi,j) $ SvS s (tt:.TreeIxL frst lc ooi j) (ii:.:RiTilO iii iij ooi j)
   -- TODO do we need to filter out everything that is not "almost
   -- right-most", where only a single tree will then be? This will go into
   -- the territory of linear vs. context-free languages for tree-editing.
@@ -67,14 +68,18 @@ instance
   -- [0,i)   -> [0,j)   [i,j)
   -- @
   --
+  -- TODO use ooi, ooj instead of i,j for CFG-style grammars
   addIndexDenseGo (cs:._) (vs:.ORightOf ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
     = map go . addIndexDenseGo cs vs us is . staticCheck (j>0 && rt>=0)
     where
-      rt = rsib frst VG.! (j-1) -- right-tree for this missing forest
+      rt = rsib frst VG.! (j-1) -- right-tree for this missing forest; @[i,rt+1)@ is the larger forest hole
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-        in SvS s (tt:.TreeIxL frst lc 0 (rt+1)) (ii:.:RiTilO iii iij 0 (rt+1))
+        in  traceShow (ss "O/O/va",i,rt+1) $ SvS s (tt:.TreeIxL frst lc i (rt+1)) (ii:.:RiTilO iii iij i (rt+1))
   {-# Inline addIndexDenseGo #-}
+
+ss :: String -> String
+ss = id
 
 instance (MinSize c) => TableStaticVar (u O) c (TreeIxL Post v a O) where 
   tableStaticVar _ _ (OStatic  ()) _ = OFirstLeft ()
@@ -103,7 +108,8 @@ instance
       rt = rsib frst VG.! (j-1) -- right-tree for this missing forest
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-        in  SvS s (tt:.TreeIxL frst lc i (rt+1)) (ii:.:RiTilO i (rt+1) ooi ooj)
+            lmc = lc VG.! rt -- left-most child TODO get from ritio
+        in  traceShow (ss "o/I/st",lmc, rt+1) $ SvS s (tt:.TreeIxL frst lc lmc (rt+1)) (ii:.:RiTilO i (rt+1) ooi ooj)
   -- TODO do we need to filter out everything that is not "almost
   -- right-most", where only a single tree will then be? This will go into
   -- the territory of linear vs. context-free languages for tree-editing.
@@ -117,14 +123,14 @@ instance
     where
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-        in SvS s (tt:.TreeIxL frst lc 0 i) (ii:.:RiTilO 0 i ooi ooj)
+        in  traceShow (ss "o/I/var",iii,i) $ SvS s (tt:.TreeIxL frst lc iii i) (ii:.:RiTilO iii i ooi ooj)
   addIndexDenseGo _ (vs:.bang) _ _ = error $ show bang
   {-# Inline addIndexDenseGo #-}
 
 instance (MinSize c) => TableStaticVar (u I) c (TreeIxL Post v a O) where 
-  tableStaticVar _ _ (OStatic  ()) _ = ORightOf   ()
-  tableStaticVar _ _ (ORightOf ()) _ = OFirstLeft ()
-  tableStaticVar _ _ z             _ = z
+  tableStaticVar _ _ (OStatic  ())   _ = ORightOf   ()
+  tableStaticVar _ _ (ORightOf ())   _ = OFirstLeft ()
+  tableStaticVar _ _ (OFirstLeft ()) _ = OLeftOf    ()
   tableStreamIndex _ c _ = id
   {-# Inline [0] tableStaticVar #-}
   {-# Inline [0] tableStreamIndex #-}
