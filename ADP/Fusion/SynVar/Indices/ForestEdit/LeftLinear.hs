@@ -109,7 +109,7 @@ instance
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
             lmc = lc VG.! rt -- left-most child TODO get from ritio
-        in  traceShow (ss "o/I/st",lmc, rt+1) $ SvS s (tt:.TreeIxL frst lc lmc (rt+1)) (ii:.:RiTilO i (rt+1) ooi ooj)
+        in  traceShow (ss "o/I/st",lmc, rt+1, lc VG.!? rt, lc VG.!? rt == Just j) $ SvS s (tt:.TreeIxL frst lc lmc (rt+1)) (ii:.:RiTilO i (rt+1) ooi ooj)
   -- TODO do we need to filter out everything that is not "almost
   -- right-most", where only a single tree will then be? This will go into
   -- the territory of linear vs. context-free languages for tree-editing.
