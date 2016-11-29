@@ -131,8 +131,8 @@ runOutside :: (Log Double) -> (Log Double) -> (Log Double) -> Frst -> Frst -> Z:
 runOutside mat mis ndl f1 f2 (Z:.iF:.iT)
   = mutateTablesDefault $
       gLabolg (resig (part mat mis ndl))
-      (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
       (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+      (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
       iF
       iT
       (node $ F.label f1)
@@ -255,24 +255,25 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
   let (inn,out,_) = runIO t1 t2 matchSc mismatchSc indelSc temperature -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
   let (Z:.TW (ITbl _ _ _ ift) _ :. TW (ITbl _ _ _ itt) _) = inn
   let (Z:.TW (ITbl _ _ _ oft) _ :. TW (ITbl _ _ _ ott) _) = out
-  let (Z:.(TreeIxL frst1 kr1 lb1 _):.(TreeIxL frst2 kr2 lb2 _), Z:.(TreeIxL _ _ ub1 _):.(TreeIxL _ _ ub2 _)) = bounds oft
+  let (Z:.(TreeIxL frst1 kr1 lb1 _):.(TreeIxL frst2 kr2 lb2 _), Z:.(TreeIxL _ _ _ ub1):.(TreeIxL _ _ _ ub2)) = bounds oft
   let ix = (Z:.TreeIxL frst1 kr1 lb1 ub1:.TreeIxL frst2 kr2 lb2 ub2)
   let sc = ift ! ix
   let ps = map (\(k,k1,k2) ->
             let k' = unsafeCoerce k
             in  ( k1
                 , k2
-                , ((itt!k) * (ott!k') / sc)
+                , traceShow (itt!k, ott!k') $ ((itt!k) * (ott!k') / sc)
                 , (maybe "-" label $ F.label t1 VG.!? k1)
                 , (maybe "-" label $ F.label t2 VG.!? k2)
-                )) [ (Z:.TreeIxL frst1 kr1 0 k1 :.TreeIxL frst2 kr2 0 k2,k1,k2) | k1 <- [lb1 .. ub1 - 1], k2 <- [lb2 .. ub2 - 1] ]
+                )) [ (Z:.TreeIxL frst1 kr1 0 k1 :.TreeIxL frst2 kr2 0 k2,k1,k2) | k1 <- [0 .. ub1 - 1], k2 <- [0 .. ub2 - 1] ]
   --
   let gsc = map (\(k1,k2,sc,l1,l2) -> sc) ps
   let fillText [] = " "
       fillText xs = xs
   let gl1 = map (\k1 -> fillText . Text.unpack $ (maybe "-" label $ F.label t1 VG.!? k1)) [lb1 .. ub1 - 1]
   let gl2 = map (\k2 -> fillText . Text.unpack $ (maybe "-" label $ F.label t2 VG.!? k2)) [lb2 .. ub2 - 1]
-  print $ ps
+  print $ (ub1,ub2)
+  mapM_ print ps
   case probFileTy of
          SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
          EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
