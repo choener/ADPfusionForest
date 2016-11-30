@@ -285,7 +285,7 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
   let gl2 = map (\k2 -> fillText . Text.unpack $ (maybe "-" label $ F.label t2 VG.!? k2)) [lb2 .. ub2 - 1]
   print $ (ub1,ub2)
   mapM_ print ps
-  print itt
+  --print itt
   case probFileTy of
          SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
          EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
