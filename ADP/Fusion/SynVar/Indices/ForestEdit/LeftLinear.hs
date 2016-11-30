@@ -113,8 +113,10 @@ instance
   -- @
   --
   addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
-    = map go . addIndexDenseGo cs vs us is
+    = staticCheck isValidTree . map go . addIndexDenseGo cs vs us is
     where
+      -- only accept, if we have a valid tree hole
+      !isValidTree = j>0 && (i == lc VG.! (j-1))
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
         in SvS s (tt:.TreeIxL frst lc 0 i) (ii:.:RiTilO 0 i ooi ooj)
