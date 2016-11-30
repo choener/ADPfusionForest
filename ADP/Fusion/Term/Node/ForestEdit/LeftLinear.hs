@@ -73,7 +73,7 @@ instance
             -- node at @[j,j+1)@.
             in TState s (ii:.:RiTilO j (j+1) oi oj) (ee:.f xs j) )
     . termStream ts cs us is
-    . staticCheck (i<j && j < u)
+    . staticCheck (i <= j && j < u)
   {-# Inline termStream #-}
 
 

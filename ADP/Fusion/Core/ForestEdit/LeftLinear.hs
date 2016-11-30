@@ -34,6 +34,8 @@ import           ADP.Fusion.Term.Node.Type
 -- 0  1  3   4
 -- @
 --
+-- Cf the tree rooted at @5@. Its bounded by @[3,6)@
+--
 -- The index @[0,7]@ includes the lower bound, but excludes the bound.
 -- Hence, this is the tree from the leaf @0@ to the local root @6@. It
 -- implicitly goes down to the leaf @4@ as well.
@@ -173,9 +175,9 @@ instance (Monad m) => MkStream m S (TreeIxL Post v a O) where
   mkStream S (ORightOf ()) (TreeIxL frst _ l u) (TreeIxL _ _ i j)
     = error $ "mkStream S / ORightOf should not be happening!"
   mkStream S (OFirstLeft ()) (TreeIxL frst _ l u) (TreeIxL _ _ i j)
-    = staticCheck True . singleton . ElmS $ RiTilO 0 0 0 0 -- TODO ???
+    = staticCheck True . singleton . ElmS $ RiTilO i i i j -- TODO ???
   mkStream S (OLeftOf ()) (TreeIxL frst _ l u) (TreeIxL _ _ i j)
-    = staticCheck True . singleton . ElmS $ RiTilO 0 0 0 0 -- TODO ???
+    = staticCheck True . singleton . ElmS $ RiTilO 0 i 0 j
   {-# Inline mkStream #-}
 
 instance
