@@ -125,9 +125,14 @@ instance
       !isValidTree = j>0 && (i == lc VG.! (j-1))
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-        in  traceShow (ss "o/I/var",iii,i) $ SvS s (tt:.TreeIxL frst lc iii i) (ii:.:RiTilO iii i ooi ooj)
+            lix = let q = lboundary frst lc (j-1) in traceShow (ss "boying",i,j,q) $ q
+        in  traceShow (ss "o/I/var",lix,i) $ SvS s (tt:.TreeIxL frst lc lix i) (ii:.:RiTilO iii i lix ooj)
   addIndexDenseGo _ (vs:.bang) _ _ = error $ show bang
   {-# Inline addIndexDenseGo #-}
+
+lboundary frst lc k = go k $ lsib frst VG.! k
+  where go now next | next == -1 = lc VG.! now
+                    | otherwise  = go next (lsib frst VG.! now)
 
 instance (MinSize c) => TableStaticVar (u I) c (TreeIxL Post v a O) where 
   tableStaticVar _ _ (OStatic  ())   _ = ORightOf   ()

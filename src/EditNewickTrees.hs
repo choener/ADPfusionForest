@@ -93,7 +93,7 @@ part mat mis ndl = SigGlobal
   , gIter = \ f t -> traceShow ("iter", f, t, f * t) $ f * t
   , gIndel = \ f (Z:.():.n1) -> traceShow ("indel", f, n1, ndl) $ f * ndl
   , gDelin = \ f (Z:.n0:.()) -> traceShow ("delin", f, n0, ndl) $ f * ndl
-  , gH = SM.foldl' (+) 0.000000
+  , gH = SM.foldl' (+) 0.00000
 }
 {-# Inline part #-}
 
@@ -121,8 +121,8 @@ runInside :: (Log Double) -> (Log Double) -> (Log Double) -> Frst -> Frst -> Z:.
 runInside mat mis ndl f1 f2
   = mutateTablesDefault $
       gGlobal (part mat mis ndl)
-      (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+      (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
+      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (node $ F.label f1)
       (node $ F.label f2)
 {-# NoInline runInside #-}
@@ -131,8 +131,8 @@ runOutside :: (Log Double) -> (Log Double) -> (Log Double) -> Frst -> Frst -> Z:
 runOutside mat mis ndl f1 f2 (Z:.iF:.iT)
   = mutateTablesDefault $
       gLabolg (resig (part mat mis ndl))
-      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-      (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
+      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
+      (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       iF
       iT
       (node $ F.label f1)
