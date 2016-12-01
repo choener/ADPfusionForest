@@ -258,10 +258,17 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
   let (Z:.TW (ITbl _ _ _ oft) _ :. TW (ITbl _ _ _ ott) _) = out
   let (Z:.(TreeIxL frst1 kr1 lb1 _):.(TreeIxL frst2 kr2 lb2 _), Z:.(TreeIxL _ _ _ ub1):.(TreeIxL _ _ _ ub2)) = bounds oft
   let ix = (Z:.TreeIxL frst1 kr1 lb1 ub1:.TreeIxL frst2 kr2 lb2 ub2)
-  let sc = ift ! ix
-  let sc2 = Prelude.sum [ oft ! (Z:.TreeIxL frst1 kr1 b1 b1 :. TreeIxL frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
-  print sc
-  print sc2
+  let scift = ift ! ix
+  let scitt = itt ! ix
+  let scoft = Prelude.sum [ oft ! (Z:.TreeIxL frst1 kr1 b1 b1 :. TreeIxL frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  let scott = Prelude.sum [ ott ! (Z:.TreeIxL frst1 kr1 b1 b1 :. TreeIxL frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  print "inside"
+  print scift
+  print scitt
+  print "outside"
+  print scoft
+  print scott
+
   let ps = map (\(k,k1,k2) ->
             let k' = unsafeCoerce k
             in  ( k1
@@ -272,8 +279,8 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
                 , ""
                 , itt!k
                 , ott!k'
-                , (itt!k) * (ott!k') / sc
-                , {- traceShow (itt!k, ott!k') $ -} max 0 . min 1.2 $ ((itt!k) * (ott!k') / sc)
+                , (itt!k) * (ott!k') / scift
+                , {- traceShow (itt!k, ott!k') $ -} max 0 . min 1.2 $ ((itt!k) * (ott!k') / scift)
                 , (maybe "-" label $ F.label t1 VG.!? k1)
                 , (maybe "-" label $ F.label t2 VG.!? k2)
                 )) [ (Z:.TreeIxL frst1 kr1 (kr1 VG.! k1) (k1+1) :.TreeIxL frst2 kr2 (kr2 VG.! k2) (k2+1),k1,k2) | k1 <- [0 .. ub1-1], k2 <- [0 .. ub2-1] ]
@@ -285,6 +292,7 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
   let gl2 = map (\k2 -> fillText . Text.unpack $ (maybe "-" label $ F.label t2 VG.!? k2)) [lb2 .. ub2 - 1]
   print $ (ub1,ub2)
   mapM_ print ps
+  print $ PA.toList oft == PA.toList ott
   --print itt
   case probFileTy of
          SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc

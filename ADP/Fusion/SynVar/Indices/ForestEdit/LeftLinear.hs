@@ -5,6 +5,7 @@ import           Data.Vector.Fusion.Stream.Monadic hiding (flatten)
 import           Prelude hiding (map)
 import qualified Data.Vector.Generic as VG
 import           Debug.Trace
+import           Data.List (sort,nub)
 
 import           ADP.Fusion.Core
 import           Data.Forest.Static
@@ -53,6 +54,9 @@ instance
   -- \hat{T} -> F      \hat{F}
   -- [i,j)   -> [0,i)  [0,j)
   -- @
+  --
+  -- TODO in case this is a @Tree@, not a @Forest@, then we should only
+  -- return some value, if @i,j@ is proper.
   --
   addIndexDenseGo (cs:._) (vs:.OStatic ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
     = map go . addIndexDenseGo cs vs us is
@@ -119,6 +123,16 @@ instance
   -- @
   --
   addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
+    = flatten mk step . addIndexDenseGo cs vs us is . staticCheck isValidTree
+    where mk svs = return (svs, allLeftBoundForests frst lc (j-1))
+          step (s,[]) = return Done
+          step (SvS s tt ii,k:ks) = do
+            let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
+            return $ Yield (SvS s (tt:.TreeIxL frst lc k i) (ii:.:RiTilO iii i k j)) (SvS s tt ii,ks) -- j or ooj ???
+          {-# Inline [0] mk   #-}
+          {-# Inline [0] step #-}
+          !isValidTree = {- if (i,j) == (3,4) then error (show (i,j,allLeftBoundForests frst lc (j-1))) else -} j>0 && (i == lc VG.! (j-1))
+    {-
     = staticCheck isValidTree . map go . addIndexDenseGo cs vs us is
     where
       -- only accept, if we have a valid tree hole
@@ -127,12 +141,19 @@ instance
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
             lix = let q = lboundary frst lc (j-1) in traceShow (ss "boying",i,j,q) $ q
         in  traceShow (ss "o/I/var",lix,i) $ SvS s (tt:.TreeIxL frst lc lix i) (ii:.:RiTilO iii i lix ooj)
+        -}
   addIndexDenseGo _ (vs:.bang) _ _ = error $ show bang
   {-# Inline addIndexDenseGo #-}
 
 lboundary frst lc k = go k $ lsib frst VG.! k
   where go now next | next == -1 = lc VG.! now
                     | otherwise  = go next (lsib frst VG.! now)
+
+allLeftBoundForests frst lc k = ls
+  where rs = goR k
+        ls = nub $ sort [ lc VG.! z | z <- rs ]
+        goR (-1) = []
+        goR k    = k : goR (parent frst VG.! k)
 
 instance (MinSize c) => TableStaticVar (u I) c (TreeIxL Post v a O) where 
   tableStaticVar _ _ (OStatic  ())   _ = ORightOf   ()
