@@ -84,6 +84,10 @@ instance Index (TreeIxL p v a t) where
 streamUpMk l h z = return (z,0,0)  -- start with size 0 and smallest element 0
 {-# Inline [0] streamUpMk #-}
 
+-- 0,0 1,1 2,2 ...
+-- 0,1 1,2 2,3 ...
+-- 0,2 1,3 2,4 ...
+
 streamUpStep p c lf ht (z,s,i)  -- s=size, i=left border
   | s > VG.length c     = return $ SM.Done
   | i + s > VG.length c = return $ SM.Skip (z,s+1,0)

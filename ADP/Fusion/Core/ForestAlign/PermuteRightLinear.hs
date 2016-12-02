@@ -551,7 +551,7 @@ instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a O)
   , Show r
   ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxR p v a O) where
-  termStream (ts:|Node f xs) (cs:.OFirstLeft ()) (us:.TreeIxR _ ul utfe) (is:.TreeIxR frst il itfe)
+  termStream (ts:|Node f nty xs) (cs:.OFirstLeft ()) (us:.TreeIxR _ ul utfe) (is:.TreeIxR frst il itfe)
     = map (\(TState s ii ee) ->
               let RiTirO l = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
                   p = case l of 

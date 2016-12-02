@@ -105,7 +105,7 @@ runForward mat mis ndl f1
       gGlobal (score mat mis ndl)
       (ITbl 0 1 EmptyOk (PA.fromAssocs (minIx f1) (maxIx f1) (-99999) [] ))
       (ITbl 0 0 EmptyOk (PA.fromAssocs (minIx f1) (maxIx f1) (-99999) [] ))
-      (node $ F.label f1)
+      (node NTroot $ F.label f1)
 {-# NoInline runForward #-}
 
 runInside :: (Log Double) -> (Log Double) -> (Log Double) -> Frst -> Z:.Tbl (Log Double):.Tbl (Log Double)
@@ -114,7 +114,7 @@ runInside mat mis ndl f1
       gGlobal (part mat mis ndl)
       (ITbl 0 1 EmptyOk (PA.fromAssocs (minIx f1) (maxIx f1) 0 [] ))
       (ITbl 0 0 EmptyOk (PA.fromAssocs (minIx f1) (maxIx f1) 0 [] ))
-      (node $ F.label f1)
+      (node NTroot $ F.label f1)
 {-# NoInline runInside #-}
 
 runOutside :: (Log Double) -> (Log Double) -> (Log Double) -> Frst -> Z:.Tbl (Log Double):.Tbl (Log Double) -> Z:.OTbl (Log Double):.OTbl (Log Double)
@@ -125,7 +125,7 @@ runOutside mat mis ndl f1 (Z:.iF:.iT)
       (ITbl 0 1 EmptyOk (PA.fromAssocs (minIx f1) (maxIx f1) 0 [] ))
       iF
       iT
-      (node $ F.label f1)
+      (node NTroot $ F.label f1)
 {-# NoInline runOutside #-}
 
 
@@ -136,7 +136,7 @@ run mat mis ndl f1 = (fwd,unId $ axiom f, unId $ axiom fb)
                       (score mat mis ndl <|| pretty')
                       (toBacktrack f (undefined :: Id a -> Id a))
                       (toBacktrack t (undefined :: Id a -> Id a))
-                      (node $ F.label f1)
+                      (node NTroot $ F.label f1)
                     :: Z:.TblBt B:.TblBt B
 {-# NoInline run #-}
 
@@ -145,49 +145,6 @@ runIO f1 matchSc mismatchSc indelSc temperature = (fwd,out,unId $ axiom f)
         out@(Z:.oft:.ott) = runOutside matchSc mismatchSc indelSc f1 fwd
 {-# NoInline runIO #-}
 
-
-{-
-testedit = do
-  -- c        c
-  -- |       / \
-  -- b      a   b
-  -- |
-  -- a
-  let t2 = f "((a)b)c;" --"(a,(b)c)d;"--"((b,c)e,d)a;"
-      t1 = f "(a,b)c;" --"((a,b)d)c;"--"(b,(c,d)f)a;"
---  let t1 = f "d;(b)e;" -- (b,c)e;"    -- '-3'
---      t2 = f "(d)f;b;" -- b;"
---  let t1 = f "(b:1,c:1)a:1;"
---      t2 = f "b:2;c:2;"
---  let t1 = f "((d,e,f)b,(z)c)a;" --"((a,b)y,c)z;" --"((d,e,i)b,c)a;" --"((a,(b)c)d,e)f;"
---      t2 = f "(((d,e)y,f)b,((x)c,i)g)a;" --"(a,b,c)z;" --"((d,e)b,(f)h,(c,i)g)a;" --"(((a,b)d)c,e)f;"
---  let t1 = f "((a,(b)c)d,e)f;"
---      t2 = f "(((a,b)d)c,e)f;"
-      f :: Text -> F.Forest Post V.Vector Info
-      f x = either error (F.forestPost . map getNewickTree) $ newicksFromText x  -- editing needs postorder
-  print t1
-  print $ F.leftMostLeaves t1
-  print $ F.leftKeyRoots t1
-  putStrLn ""
-  print t2
-  print $ F.leftMostLeaves t2
-  print $ F.leftKeyRoots t2
-  putStrLn ""
-  let (Z:.TW (ITbl _ _ _ f) _:.TW (ITbl _ _ _ t) _,sc,bt') = run 1 (-3) (-1) t1 t2 -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
-  mapM_ print $ assocs f
-  print ""
-  mapM_ print $ assocs t
-  --print f
-  --print t
-  print $ F.leftKeyRoots t1
-  print $ F.leftKeyRoots t2
-  let bt = take 10 $ nub bt'
-  print (length bt', length bt)
-  forM_ bt $ \b -> do
-    putStrLn ""
-    forM_ b $ \x -> print x -- putStrLn $ T.drawTree $ fmap show x
-  print sc
--}
 
 data PFT = SVG | EPS
   deriving (Show,Data,Typeable)
@@ -219,6 +176,7 @@ oOptions = Options
 main :: IO ()
 main = do
   o@Options{..} <- cmdArgs oOptions
+  test inputFiles
   return ()
   {-
   unless (length inputFiles >= 2) $ do
@@ -278,6 +236,10 @@ runAlignIO fw probFileTy probFile t1' matchSc mismatchSc indelSc temperature = d
   print "outside"
   print scoft
   print scott
+  print ift
+  print itt
+  print oft
+  print ott
 
   let ps = map (\(k,k1) ->
             let k' = unsafeCoerce k

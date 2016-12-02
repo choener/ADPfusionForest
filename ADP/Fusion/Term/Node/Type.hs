@@ -9,13 +9,17 @@ import           Data.PrimitiveArray
 
 
 
+data NodeType = NTany | NTroot
+  deriving (Eq,Show)
+
 data Node r x where
   Node :: VG.Vector v x
        => (v x -> Int -> r)
+       -> NodeType
        -> !(v x)
        -> Node r x
 
-node :: VG.Vector v x => v x -> Node x x
+node :: VG.Vector v x => NodeType -> v x -> Node x x
 node = Node (VG.!)
 {-# Inline node #-}
 

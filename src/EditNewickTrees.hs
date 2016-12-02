@@ -37,12 +37,13 @@ Verbose
 Grammar: Global
 N: T
 N: F
+T: r
 T: x
 S: [F,F]
 [F,F] -> iter   <<< [F,F] [T,T]
 [F,F] -> indel  <<< [F,F] [-,x]
 [F,F] -> delin  <<< [F,F] [x,-]
-[T,T] -> align  <<< [F,F] [x,x]
+[T,T] -> align  <<< [F,F] [r,r]
 [F,F] -> done   <<< [e,e]
 //
 Outside: Labolg
@@ -58,7 +59,7 @@ makeAlgebraProduct ''SigGlobal
 
 
 
-score :: Monad m => Int -> Int -> Int -> SigGlobal m Int Int Info Info
+score :: Monad m => Int -> Int -> Int -> SigGlobal m Int Int Info Info Info Info
 score mat mis ndl = SigGlobal
   { gAlign = \ f ( Z:.n0:.n1) -> f + if label n0 == label n1 then mat else mis
   , gDone = \(Z:.():.()) -> 0
@@ -69,13 +70,13 @@ score mat mis ndl = SigGlobal
 }
 {-# Inline score #-}
 
-resig :: Monad m => SigGlobal m a b c d -> SigLabolg m a b c d
+resig :: Monad m => SigGlobal m a b c d e f -> SigLabolg m a b c d e f
 resig (SigGlobal gdo git gal gin gde gh) = SigLabolg gdo git gal gin gde gh
 {-# Inline resig #-}
 
 
 type Pretty' = [[(Info,Info)]]
-pretty' :: Monad m => SigGlobal m [(Info,Info)] [[(Info,Info)]] Info Info
+pretty' :: Monad m => SigGlobal m [(Info,Info)] [[(Info,Info)]] Info Info Info Info
 pretty' = SigGlobal
   { gDone  = \ (Z:.():.()) -> []
   , gIter  = \ f t -> f++t
@@ -86,7 +87,7 @@ pretty' = SigGlobal
   }
 {-# Inline pretty' #-}
 
-part :: Monad m => Log Double -> Log Double -> Log Double -> SigGlobal m (Log Double) (Log Double) Info Info
+part :: Monad m => Log Double -> Log Double -> Log Double -> SigGlobal m (Log Double) (Log Double) Info Info Info Info
 part mat mis ndl = SigGlobal
   { gAlign = \ f ( Z:.n0:.n1) -> let z = f * if label n0 == label n1 then mat else mis in {- traceShow ("align",f,n0,n1,mat,mis,z) $ -} z
   , gDone = \(Z:.():.()) -> {- traceShow ("done", 1) $ -} 1
@@ -113,8 +114,10 @@ runForward mat mis ndl f1 f2
       gGlobal (score mat mis ndl)
       (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
       (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-      (node $ F.label f1)
-      (node $ F.label f2)
+      (node NTroot $ F.label f1)
+      (node NTroot $ F.label f2)
+      (node NTany  $ F.label f1)
+      (node NTany  $ F.label f2)
 {-# NoInline runForward #-}
 
 runInside :: (Log Double) -> (Log Double) -> (Log Double) -> Frst -> Frst -> Z:.Tbl (Log Double):.Tbl (Log Double)
@@ -123,8 +126,10 @@ runInside mat mis ndl f1 f2
       gGlobal (part mat mis ndl)
       (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
-      (node $ F.label f1)
-      (node $ F.label f2)
+      (node NTroot $ F.label f1)
+      (node NTroot $ F.label f2)
+      (node NTany  $ F.label f1)
+      (node NTany  $ F.label f2)
 {-# NoInline runInside #-}
 
 runOutside :: (Log Double) -> (Log Double) -> (Log Double) -> Frst -> Frst -> Z:.Tbl (Log Double):.Tbl (Log Double) -> Z:.OTbl (Log Double):.OTbl (Log Double)
@@ -135,8 +140,10 @@ runOutside mat mis ndl f1 f2 (Z:.iF:.iT)
       (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       iF
       iT
-      (node $ F.label f1)
-      (node $ F.label f2)
+      (node NTroot $ F.label f1)
+      (node NTroot $ F.label f2)
+      (node NTany  $ F.label f1)
+      (node NTany  $ F.label f2)
 {-# NoInline runOutside #-}
 
 
@@ -144,7 +151,8 @@ run :: Int -> Int -> Int -> Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,Int,Pretty')
 run mat mis ndl f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
   where fwd@(Z:.f:.t) = runForward mat mis ndl f1 f2
         Z:.fb:.tb = gGlobal (score mat mis ndl <|| pretty') (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
-                    (node $ F.label f1) (node $ F.label f2)
+                    (node NTroot $ F.label f1) (node NTroot $ F.label f2)
+                    (node NTany  $ F.label f1) (node NTany  $ F.label f2)
                     :: Z:.TblBt B:.TblBt B
 {-# NoInline run #-}
 

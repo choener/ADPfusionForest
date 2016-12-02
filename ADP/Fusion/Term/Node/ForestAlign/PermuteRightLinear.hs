@@ -27,10 +27,10 @@ import           ADP.Fusion.Term.Node.Type
 instance
   ( TmkCtx1 m ls (Node r x) (TreeIxR p v a t)
   ) => MkStream m (ls :!: Node r x) (TreeIxR p v a t) where
-  mkStream (ls :!: Node f xs) sv us is
+  mkStream (ls :!: Node f nty xs) sv us is
     = map (\(ss,ee,ii) -> ElmNode ee ii ss)
-    . addTermStream1 (Node f xs) sv us is
-    $ mkStream ls (termStaticVar (Node f xs) sv is) us (termStreamIndex (Node f xs) sv is)
+    . addTermStream1 (Node f nty xs) sv us is
+    $ mkStream ls (termStaticVar (Node f nty xs) sv is) us (termStreamIndex (Node f nty xs) sv is)
   {-# Inline mkStream #-}
 
 
@@ -44,7 +44,7 @@ instance
   ( TstCtx m ts s x0 i0 is (TreeIxR p v a I)
 --  , Show r
   ) => TermStream m (TermSymbol ts (Node r x)) s (is:.TreeIxR p v a I) where
-  termStream (ts:|Node f xs) (cs:.IVariable ()) (us:.TreeIxR _ ul utfe) (is:.TreeIxR frst il itfe)
+  termStream (ts:|Node f nty xs) (cs:.IVariable ()) (us:.TreeIxR _ ul utfe) (is:.TreeIxR frst il itfe)
     = map (\(TState s ii ee) ->
               let RiTirI (T l) = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
                   cs = children frst VG.! l

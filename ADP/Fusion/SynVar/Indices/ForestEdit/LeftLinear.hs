@@ -63,7 +63,7 @@ instance
     where
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-        in  -- traceShow (ss "O/O/st",ooi,j) $
+        in  traceShow (ss "O/O/st",(i,j),(ooi,j)) $
             SvS s (tt:.TreeIxL frst lc ooi j) (ii:.:RiTilO iii iij ooi j)
   -- TODO do we need to filter out everything that is not "almost
   -- right-most", where only a single tree will then be? This will go into
@@ -75,18 +75,28 @@ instance
   --
   -- TODO use ooi, ooj instead of i,j for CFG-style grammars
   addIndexDenseGo (cs:._) (vs:.ORightOf ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
-    = flatten mk step . addIndexDenseGo cs vs us is
-    where mk svs = return (svs, Prelude.filter (\z -> j == lc VG.! z) $ toRoot frst (j-1)) -- not @j-1@, since we want non-empty trees
+    = blub . flatten mk step . addIndexDenseGo cs vs us is
+    where mk svs = return (svs, Prelude.filter (\z -> j == lc VG.! z) $ toRoot frst j)
+          -- ^ the @filter@ makes sure that we only build trees whose
+          -- left-most leaf is @j@. Since then forest and tree fit next to
+          -- each other.
           step (_,[]) = return Done
+          -- a tree we can place to the right of us: @[j,k+1)@
+          -- we ourselves make a whole @[i,k+1)@ in which to place said
+          -- tree.
           step (SvS s tt ii,k:ks) = do
             let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-            return $ Yield (SvS s (tt:.TreeIxL frst lc i k) (ii:.:RiTilO k j i k)) (SvS s tt ii, ks)
+            traceShow (ss "OOvar",i,j,(i,k+1),(j,k+1)) . return $ Yield (SvS s (tt:.TreeIxL frst lc i (k+1)) (ii:.:RiTilO j (k+1) i (k+1))) (SvS s tt ii, ks)
           {-# Inline [0] mk   #-}
           {-# Inline [0] step #-}
+          blub = if False -- (i,j) == (0,1)
+                 then traceShow (ss "blub",i,j, let rs = toRoot frst j in (rs, [r | r <- rs, j == lc VG.! r]))
+                 else id
   {-# Inline addIndexDenseGo #-}
 
 toRoot frst k = goR k
   where goR (-1) = []
+        goR k | k >= VG.length (parent frst) = []
         goR k    = k : goR (parent frst VG.! k)
 
 ss :: String -> String
@@ -118,7 +128,7 @@ instance
     where
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-        in  if (iij>0 && iii == lc VG.! (iij-1))
+        in  if (iij>0 && j == iii && iii == lc VG.! (iij-1))
             then SvS s (tt:.TreeIxL frst lc iii iij) (ii:.:RiTilO iii iij ooi ooj)
             else error $ show (i,j,iii,iij, lc VG.! (iij-1), toRoot frst (j-1))
   -- TODO do we need to filter out everything that is not "almost
@@ -138,7 +148,7 @@ instance
             return $ Yield (SvS s (tt:.TreeIxL frst lc k i) (ii:.:RiTilO iii i k j)) (SvS s tt ii,ks) -- j or ooj ???
           {-# Inline [0] mk   #-}
           {-# Inline [0] step #-}
-          !isValidTree = j>0 -- && (i == lc VG.! (j-1))
+          !isValidTree = j>0 && j<=u -- && (i == lc VG.! (j-1))
   addIndexDenseGo _ (vs:.bang) _ _ = error $ show bang
   {-# Inline addIndexDenseGo #-}
 
