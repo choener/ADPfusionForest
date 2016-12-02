@@ -63,7 +63,8 @@ instance
     where
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-        in  traceShow (ss "O/O/st",ooi,j) $ SvS s (tt:.TreeIxL frst lc ooi j) (ii:.:RiTilO iii iij ooi j)
+        in  -- traceShow (ss "O/O/st",ooi,j) $
+            SvS s (tt:.TreeIxL frst lc ooi j) (ii:.:RiTilO iii iij ooi j)
   -- TODO do we need to filter out everything that is not "almost
   -- right-most", where only a single tree will then be? This will go into
   -- the territory of linear vs. context-free languages for tree-editing.
@@ -74,13 +75,19 @@ instance
   --
   -- TODO use ooi, ooj instead of i,j for CFG-style grammars
   addIndexDenseGo (cs:._) (vs:.ORightOf ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
-    = map go . addIndexDenseGo cs vs us is . staticCheck (j>0 && rt>=0)
-    where
-      rt = rsib frst VG.! (j-1) -- right-tree for this missing forest; @[i,rt+1)@ is the larger forest hole
-      go (SvS s tt ii) =
-        let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-        in  traceShow (ss "O/O/va",i,rt+1) $ SvS s (tt:.TreeIxL frst lc i (rt+1)) (ii:.:RiTilO iii iij i (rt+1))
+    = flatten mk step . addIndexDenseGo cs vs us is
+    where mk svs = return (svs, Prelude.filter (\z -> j == lc VG.! z) $ toRoot frst (j-1)) -- not @j-1@, since we want non-empty trees
+          step (_,[]) = return Done
+          step (SvS s tt ii,k:ks) = do
+            let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
+            return $ Yield (SvS s (tt:.TreeIxL frst lc i k) (ii:.:RiTilO k j i k)) (SvS s tt ii, ks)
+          {-# Inline [0] mk   #-}
+          {-# Inline [0] step #-}
   {-# Inline addIndexDenseGo #-}
+
+toRoot frst k = goR k
+  where goR (-1) = []
+        goR k    = k : goR (parent frst VG.! k)
 
 ss :: String -> String
 ss = id
@@ -107,13 +114,13 @@ instance
   -- @
   --
   addIndexDenseGo (cs:._) (vs:.OStatic ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
-    = map go . addIndexDenseGo cs vs us is . staticCheck (j>0 && rt>=0)
+    = map go . addIndexDenseGo cs vs us is -- . staticCheck (j>0 && rt>=0)
     where
-      rt = rsib frst VG.! (j-1) -- right-tree for this missing forest
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-            lmc = lc VG.! rt -- left-most child TODO get from ritio
-        in  traceShow (ss "o/I/st",lmc, rt+1, lc VG.!? rt, lc VG.!? rt == Just j) $ SvS s (tt:.TreeIxL frst lc lmc (rt+1)) (ii:.:RiTilO i (rt+1) ooi ooj)
+        in  if (iij>0 && iii == lc VG.! (iij-1))
+            then SvS s (tt:.TreeIxL frst lc iii iij) (ii:.:RiTilO iii iij ooi ooj)
+            else error $ show (i,j,iii,iij, lc VG.! (iij-1), toRoot frst (j-1))
   -- TODO do we need to filter out everything that is not "almost
   -- right-most", where only a single tree will then be? This will go into
   -- the territory of linear vs. context-free languages for tree-editing.
@@ -131,17 +138,7 @@ instance
             return $ Yield (SvS s (tt:.TreeIxL frst lc k i) (ii:.:RiTilO iii i k j)) (SvS s tt ii,ks) -- j or ooj ???
           {-# Inline [0] mk   #-}
           {-# Inline [0] step #-}
-          !isValidTree = {- if (i,j) == (3,4) then error (show (i,j,allLeftBoundForests frst lc (j-1))) else -} j>0 && (i == lc VG.! (j-1))
-    {-
-    = staticCheck isValidTree . map go . addIndexDenseGo cs vs us is
-    where
-      -- only accept, if we have a valid tree hole
-      !isValidTree = j>0 && (i == lc VG.! (j-1))
-      go (SvS s tt ii) =
-        let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-            lix = let q = lboundary frst lc (j-1) in traceShow (ss "boying",i,j,q) $ q
-        in  traceShow (ss "o/I/var",lix,i) $ SvS s (tt:.TreeIxL frst lc lix i) (ii:.:RiTilO iii i lix ooj)
-        -}
+          !isValidTree = j>0 -- && (i == lc VG.! (j-1))
   addIndexDenseGo _ (vs:.bang) _ _ = error $ show bang
   {-# Inline addIndexDenseGo #-}
 
