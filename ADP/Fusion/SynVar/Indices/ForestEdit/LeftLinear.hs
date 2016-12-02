@@ -63,7 +63,7 @@ instance
     where
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-        in  traceShow (ss "O/O/st",(i,j),(ooi,j)) $
+        in  traceShowIf True (ss "O/O/st",(i,j),(ooi,j)) $
             SvS s (tt:.TreeIxL frst lc ooi j) (ii:.:RiTilO iii iij ooi j)
   -- TODO do we need to filter out everything that is not "almost
   -- right-most", where only a single tree will then be? This will go into
@@ -86,7 +86,8 @@ instance
           -- tree.
           step (SvS s tt ii,k:ks) = do
             let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-            traceShow (ss "OOvar",i,j,(i,k+1),(j,k+1)) . return $ Yield (SvS s (tt:.TreeIxL frst lc i (k+1)) (ii:.:RiTilO j (k+1) i (k+1))) (SvS s tt ii, ks)
+            -- traceShow (ss "OOvar",i,j,(i,k+1),(j,k+1)) .
+            return $ Yield (SvS s (tt:.TreeIxL frst lc i (k+1)) (ii:.:RiTilO j (k+1) i (k+1))) (SvS s tt ii, ks)
           {-# Inline [0] mk   #-}
           {-# Inline [0] step #-}
           blub = if False -- (i,j) == (0,1)
@@ -140,17 +141,22 @@ instance
   -- @
   --
   addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
-    = flatten mk step . addIndexDenseGo cs vs us is . staticCheck isValidTree
+    = flatten mk step . addIndexDenseGo cs vs us is . staticCheck isValidTree -- . blub
     where mk svs = return (svs, allLeftBoundForests frst lc (j-1))
           step (s,[]) = return Done
           step (SvS s tt ii,k:ks) = do
             let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-            return $ Yield (SvS s (tt:.TreeIxL frst lc k i) (ii:.:RiTilO iii i k j)) (SvS s tt ii,ks) -- j or ooj ???
+            traceShowIf True (ss "OIvar",(i,j),(k,i)) . return $ Yield (SvS s (tt:.TreeIxL frst lc k i) (ii:.:RiTilO iii i k j)) (SvS s tt ii,ks) -- j or ooj ???
           {-# Inline [0] mk   #-}
           {-# Inline [0] step #-}
-          !isValidTree = j>0 && j<=u -- && (i == lc VG.! (j-1))
+          !isValidTree = j>0 && j<=u
+          blub = if (i,j) == (3,4)
+                 then traceShow ((i,j),let zs = allLeftBoundForests frst lc (j-1) in (zs,[ ((k,i),(k,j)) | k <- zs] ))
+                 else id
   addIndexDenseGo _ (vs:.bang) _ _ = error $ show bang
   {-# Inline addIndexDenseGo #-}
+
+traceShowIf cond s = if cond then traceShow s else id
 
 lboundary frst lc k = go k $ lsib frst VG.! k
   where go now next | next == -1 = lc VG.! now
