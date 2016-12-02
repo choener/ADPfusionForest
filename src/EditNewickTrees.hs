@@ -301,7 +301,12 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
   print $ (ub1,ub2)
   mapM_ print ps
   print $ PA.toList oft == PA.toList ott
-  --print itt
+  print "forests"
+  print ift
+  print oft
+  print "trees"
+  print itt
+  print ott
   case probFileTy of
          SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
          EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
