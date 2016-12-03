@@ -48,6 +48,7 @@ S: [F,F]
 
 [G,G] -> indel  <<< [F,F] [-,x]
 [G,G] -> delin  <<< [F,F] [x,-]
+[G,G] -> gThenT <<< [F,F] [T,T]
 
 [T,T] -> align  <<< [F,F] [r,r]
 //
@@ -152,7 +153,7 @@ runOutside mat mis ndl f1 f2 (Z:.iF:.iG:.iT)
       (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] )) -- ^F
       (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] )) -- ^G
       (ITbl 0 2 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] )) -- ^T
---      iF
+      iF
       iG
       iT
       (node NTroot $ F.label f1)
