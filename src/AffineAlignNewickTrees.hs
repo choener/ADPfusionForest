@@ -161,8 +161,8 @@ runForward f1 f2 m a d = let
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                           (node $ F.label f1)
-                           (node $ F.label f2)
+                           (node NTany $ F.label f1)
+                           (node NTany $ F.label f2)
 
 
 type B = T.Tree (Info,Info)
@@ -184,7 +184,7 @@ run f1 f2 m a d = (fwd,unId $ axiom a1, unId $ axiom b1)
                     (toBacktrack a10 (undefined :: Id a -> Id a))  
                     (toBacktrack a11 (undefined :: Id a -> Id a))  
                     (toBacktrack a12 (undefined :: Id a -> Id a))  
-                    (node $ F.label f1) (node $ F.label f2)
+                    (node NTany $ F.label f1) (node NTany $ F.label f2)
           :: Z:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B
 
 

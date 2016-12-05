@@ -153,8 +153,8 @@ runForward f1 f2 matchSc notmatchSc delinSc affinSc = let
                            (ITbl 1 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 1 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 1 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                           (node $ F.label f1)
-                           (node $ F.label f2)
+                           (node NTany $ F.label f1)
+                           (node NTany $ F.label f2)
 
 
 -- |inside part
@@ -199,8 +199,8 @@ runInside f1 f2 matchSc notmatchSc delinSc affinSc temperature = let
                            (ITbl 1 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))   -- TT
                            (ITbl 1 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))   -- TZ
                            (ITbl 1 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))   -- ZT
-                           (node $ F.label f1)
-                           (node $ F.label f2)
+                           (node NTany $ F.label f1)
+                           (node NTany $ F.label f2)
 
 
 -- outside part
@@ -229,8 +229,8 @@ runOutside f1 f2 matchSc mismatchSc indelSc affinSc temperature (Z:.iE:.iF:.iQ:.
     iT
     iS
     iZ
-    (node $ F.label f1)
-    (node $ F.label f2)
+    (node NTany $ F.label f1)
+    (node NTany $ F.label f2)
 {-# NoInline runOutside #-}
 
 
@@ -248,7 +248,7 @@ run f1 f2 matchSc notmatchSc delinSc affinSc = (fwd,unId $ axiom a2, unId $ axio
                     (toBacktrack a5 (undefined :: Id a -> Id a))  
                     (toBacktrack a6 (undefined :: Id a -> Id a))  
                     (toBacktrack a7 (undefined :: Id a -> Id a))  
-                    (node $ F.label f1) (node $ F.label f2)
+                    (node NTany $ F.label f1) (node NTany $ F.label f2)
                     :: Z:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B
 
 

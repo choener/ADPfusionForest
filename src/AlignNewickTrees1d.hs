@@ -75,7 +75,7 @@ runForward f1 f2 = mutateTablesDefault $
                    gGlobal score
                    (ITbl 0 1 EmptyOk (PA.fromAssocs (minIx f1) (maxIx f1) (-99999) [] ))
                    (ITbl 0 0 EmptyOk (PA.fromAssocs (minIx f1) (maxIx f1) (-99999) [] ))
-                   (node $ F.label f1)
+                   (node NTany $ F.label f1)
 
 
 
@@ -84,7 +84,7 @@ run :: Frst -> Frst -> (Z:.Tbl Int:.Tbl Int,Int,[[(Info)]])
 run f1 f2 = (fwd,unId $ axiom f,take 1 . unId $ axiom fb)
   where fwd@(Z:.f:.t) = runForward f1 f2
         Z:.fb:.tb = gGlobal (score <|| pretty) (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))  
-                    (node $ F.label f1)
+                    (node NTany $ F.label f1)
                     :: Z:.TblBt B:.TblBt B
 
 

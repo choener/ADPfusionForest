@@ -21,14 +21,14 @@ instance
   ( IndexHdr s x0 i0 us (TreeIxL p v a I) cs c is (TreeIxL p v a I)
   , MinSize c
   ) => AddIndexDense s (us:.TreeIxL p v a I) (cs:.c) (is:.TreeIxL p v a I) where
-  addIndexDenseGo (cs:._) (vs:.IStatic ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
-    = map go . addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.IStatic ()) (lbs:._) (ubs:._) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
+    = map go . addIndexDenseGo cs vs lbs ubs us is
     where
       go (SvS s tt ii) =
         let RiTilI _ k = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL p v a I))
         in SvS s (tt:.TreeIxL frst lc k j) (ii:.:RiTilI k j)
-  addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
-    = map go . addIndexDenseGo cs vs us is . staticCheck (i<j)
+  addIndexDenseGo (cs:._) (vs:.IVariable ()) (lbs:._) (ubs:._) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
+    = map go . addIndexDenseGo cs vs lbs ubs us is . staticCheck (i<j)
     where
       go (SvS s tt ii) =
         let RiTilI _ k = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL p v a I))
@@ -58,8 +58,8 @@ instance
   -- TODO in case this is a @Tree@, not a @Forest@, then we should only
   -- return some value, if @i,j@ is proper.
   --
-  addIndexDenseGo (cs:._) (vs:.OStatic ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
-    = map go . addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.OStatic ()) (lbs:._) (ubs:._) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
+    = map go . addIndexDenseGo cs vs lbs ubs us is
     where
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
@@ -74,8 +74,8 @@ instance
   -- @
   --
   -- TODO use ooi, ooj instead of i,j for CFG-style grammars
-  addIndexDenseGo (cs:._) (vs:.ORightOf ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
-    = blub . flatten mk step . addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.ORightOf ()) (lbs:._) (ubs:._) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
+    = blub . flatten mk step . addIndexDenseGo cs vs lbs ubs us is
     where mk svs = return (svs, Prelude.filter (\z -> j == lc VG.! z) $ toRoot frst j)
           -- ^ the @filter@ makes sure that we only build trees whose
           -- left-most leaf is @j@. Since then forest and tree fit next to
@@ -124,8 +124,8 @@ instance
   -- [0,i)   -> [0,j)   [i,j)
   -- @
   --
-  addIndexDenseGo (cs:._) (vs:.OStatic ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
-    = map go . addIndexDenseGo cs vs us is -- . staticCheck (j>0 && rt>=0)
+  addIndexDenseGo (cs:._) (vs:.OStatic ()) (lbs:._) (ubs:._) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
+    = map go . addIndexDenseGo cs vs lbs ubs us is -- . staticCheck (j>0 && rt>=0)
     where
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
@@ -140,8 +140,8 @@ instance
   -- [i,j)   -> [0,i)  [0,j)
   -- @
   --
-  addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
-    = flatten mk step . addIndexDenseGo cs vs us is . staticCheck isValidTree -- . blub
+  addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (lbs:._) (ubs:._) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
+    = flatten mk step . addIndexDenseGo cs vs lbs ubs us is . staticCheck isValidTree -- . blub
     where mk svs = return (svs, allLeftBoundForests frst lc (j-1))
           step (s,[]) = return Done
           step (SvS s tt ii,k:ks) = do
@@ -153,7 +153,7 @@ instance
           blub = if (i,j) == (3,4)
                  then traceShow ((i,j),let zs = allLeftBoundForests frst lc (j-1) in (zs,[ ((k,i),(k,j)) | k <- zs] ))
                  else id
-  addIndexDenseGo _ (vs:.bang) _ _ = error $ show bang
+  addIndexDenseGo _ (vs:.bang) _ _ _ _ = error $ show bang
   {-# Inline addIndexDenseGo #-}
 
 traceShowIf cond s = if cond then traceShow s else id
@@ -184,8 +184,8 @@ instance
   ( IndexHdr s x0 i0 us (TreeIxL Post v a I) cs c is (TreeIxL Post v a C)
   , MinSize c
   ) => AddIndexDense s (us:.TreeIxL Post v a I) (cs:.c) (is:.TreeIxL Post v a C) where
-  addIndexDenseGo (cs:._) (vs:.Complemented) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
-    = map go . addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.Complemented) (lbs:._) (ubs:._) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
+    = map go . addIndexDenseGo cs vs lbs ubs us is
     where
       go (SvS s tt ii) = SvS s (tt:.TreeIxL frst lc i j) (ii:.:RiTilC i j)
   {-# Inline addIndexDenseGo #-}
@@ -194,8 +194,8 @@ instance
   ( IndexHdr s x0 i0 us (TreeIxL Post v a O) cs c is (TreeIxL Post v a C)
   , MinSize c
   ) => AddIndexDense s (us:.TreeIxL Post v a O) (cs:.c) (is:.TreeIxL Post v a C) where
-  addIndexDenseGo (cs:._) (vs:.Complemented) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
-    = map go . addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.Complemented) (lbs:._) (ubs:._) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j)  -- static = rechts!
+    = map go . addIndexDenseGo cs vs lbs ubs us is
     where
       go (SvS s tt ii) = SvS s (tt:.TreeIxL frst lc i j) (ii:.:RiTilC i j)
   {-# Inline addIndexDenseGo #-}

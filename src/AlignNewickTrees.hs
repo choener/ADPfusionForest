@@ -110,8 +110,8 @@ runForward f1 f2 matchSc notmatchSc delinSc = mutateTablesDefault $
                    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
-                   (node $ F.label f1)
-                   (node $ F.label f2)
+                   (node NTany $ F.label f1)
+                   (node NTany $ F.label f2)
 {-# NoInline runForward #-}
 
 runInside :: Frst -> Frst -> Log Double -> Log Double -> Log Double -> Log Double -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double)
@@ -120,8 +120,8 @@ runInside f1 f2 matchSc mismatchSc indelSc temperature = mutateTablesDefault $
                    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
                    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
                    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
-                   (node $ F.label f1)
-                   (node $ F.label f2)
+                   (node NTany $ F.label f1)
+                   (node NTany $ F.label f2)
 {-# NoInline runInside #-}
 
 type Trox = TreeIxR Pre V.Vector Info O
@@ -137,15 +137,15 @@ runOutside f1 f2 matchSc mismatchSc indelSc temperature (Z:.iF:.iM:.iT)
     iF
     iM
     iT
-    (node $ F.label f1)
-    (node $ F.label f2)
+    (node NTany $ F.label f1)
+    (node NTany $ F.label f2)
 {-# NoInline runOutside #-}
 
 runS :: Frst -> Frst -> Int -> Int -> Int -> (Z:.Tbl Int :.Tbl Int:.Tbl Int, Int ,[[T.Tree (Info, Info)]] )
 runS f1 f2 matchSc notmatchSc delinSc = (fwd,unId $ axiom f, unId $ axiom fb)
   where fwd@(Z:.f:.m:.t) = runForward f1 f2 matchSc notmatchSc delinSc
         Z:.fb:.fm:.tb = gGlobal ((score matchSc notmatchSc delinSc) <|| pretty) (toBacktrack f (undefined :: Id a -> Id a)) (toBacktrack m (undefined :: Id a -> Id a)) (toBacktrack t (undefined :: Id a -> Id a))
-                        (node $ F.label f1) (node $ F.label f2)
+                        (node NTany $ F.label f1) (node NTany $ F.label f2)
                         :: Z:.TblBt B:.TblBt B:.TblBt B
 
 runIO f1 f2 matchSc mismatchSc indelSc temperature = (fwd,out,unId $ axiom f)

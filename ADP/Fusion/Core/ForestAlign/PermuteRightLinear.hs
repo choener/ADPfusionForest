@@ -424,8 +424,8 @@ instance
 --  , Show a, VG.Vector v a -- TEMP!
 --  , a ~ Info
   ) => AddIndexDense s (us:.TreeIxR p v a I) (cs:.c) (is:.TreeIxR p v a I) where
-  addIndexDenseGo (cs:._) (vs:.IStatic ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
-    = map go . addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.IStatic ()) (lbs:._) (ubs:._) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
+    = map go . addIndexDenseGo cs vs lbs ubs us is
     where
       go (SvS s tt ii) =
         let RiTirI tfe = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a I))
@@ -434,8 +434,8 @@ instance
             tfe'       = if getTFEIx tfe == getTFEIx utfe then E (getTFEIx tfe) else tfe
         in  tSI (glb) ('S',tfe,'.') $
             SvS s (tt:.TreeIxR frst ul tfe') (ii:.:RiTirI utfe)
-  addIndexDenseGo (cs:._) (vs:.IVariable ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
-    = flatten mk step . addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.IVariable ()) (lbs:._) (ubs:._) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
+    = flatten mk step . addIndexDenseGo cs vs lbs ubs us is
     where mk svS = return $ EpsFull jtfe svS
           step Finis = return $ Done
           -- nothing here
@@ -721,13 +721,13 @@ instance
   ( IndexHdr s x0 i0 us (TreeIxR p v a O) cs c is (TreeIxR p v a O)
   , MinSize c
   ) => AddIndexDense s (us:.TreeIxR p v a O) (cs:.c) (is:.TreeIxR p v a O) where
-  addIndexDenseGo (cs:._) (vs:.OStatic ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
-    = map go .addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.OStatic ()) (lbs:._) (ubs:._) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
+    = map go .addIndexDenseGo cs vs lbs ubs us is
     where go (SvS s tt ii) =
             let RiTirO ol = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
             in  SvS s (tt:.TreeIxR frst ul ol) (ii:.:RiTirO ol) -- TODO should set right boundary
-  addIndexDenseGo (cs:._) (vs:.ORightOf ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
-    = flatten mk step . addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.ORightOf ()) (lbs:._) (ubs:._) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
+    = flatten mk step . addIndexDenseGo cs vs lbs ubs us is
     where mk svS = return $ case jtfe of
                     E _ -> OOE svS jtfe
                     T _ -> OOE svS jtfe
@@ -773,13 +773,13 @@ instance
   ( IndexHdr s x0 i0 us (TreeIxR p v a I) cs c is (TreeIxR p v a O)
   , MinSize c
   ) => AddIndexDense s (us:.TreeIxR p v a I) (cs:.c) (is:.TreeIxR p v a O) where
-  addIndexDenseGo (cs:._) (vs:.OStatic ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
-    = map go .addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.OStatic ()) (lbs:._) (ubs:._) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
+    = map go .addIndexDenseGo cs vs lbs ubs us is
     where go (SvS s tt ii) =
             let RiTirO lo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
             in  SvS s (tt:.TreeIxR frst jl lo) (ii:.:RiTirO lo) -- TODO should set right boundary
-  addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
-    = flatten mk step . addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (lbs:._) (ubs:._) (us:.TreeIxR frst ul utfe) (is:.TreeIxR _ jl jtfe)
+    = flatten mk step . addIndexDenseGo cs vs lbs ubs us is
     where mk svS@(SvS s tt ii) =
             let RiTirO lo = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a O))
             in  return $ case lo of
@@ -875,21 +875,23 @@ instance
   ( IndexHdr s x0 i0 us (TreeIxR p v a I) cs c is (TreeIxR p v a C)
   , MinSize c
   ) => AddIndexDense s (us:.TreeIxR p v a I) (cs:.c) (is:.TreeIxR p v a C) where
-  addIndexDenseGo (cs:._) (vs:.Complemented) (us:.TreeIxR frst lk v) (is:.TreeIxR _ _ j)
-    = map go .addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.Complemented) (lbs:._) (ubs:._) (us:.TreeIxR frst lk v) (is:.TreeIxR _ _ j)
+    = map go .addIndexDenseGo cs vs lbs ubs us is
     where go (SvS s tt ii) =
             let RiTirC tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a C))
             in  SvS s (tt:.TreeIxR frst lk tf) (ii:.:RiTirC tf)
+  {-# Inline addIndexDenseGo #-}
 
 instance
   ( IndexHdr s x0 i0 us (TreeIxR p v a O) cs c is (TreeIxR p v a C)
   , MinSize c
   ) => AddIndexDense s (us:.TreeIxR p v a O) (cs:.c) (is:.TreeIxR p v a C) where
-  addIndexDenseGo (cs:._) (vs:.Complemented) (us:.TreeIxR frst lk v) (is:.TreeIxR _ _ j)
-    = map go .addIndexDenseGo cs vs us is
+  addIndexDenseGo (cs:._) (vs:.Complemented) (lbs:._) (ubs:._) (us:.TreeIxR frst lk v) (is:.TreeIxR _ _ j)
+    = map go .addIndexDenseGo cs vs lbs ubs us is
     where go (SvS s tt ii) =
             let RiTirC tf = getIndex (getIdx s) (Proxy :: PRI is (TreeIxR p v a C))
             in  SvS s (tt:.TreeIxR frst lk tf) (ii:.:RiTirC tf)
+  {-# Inline addIndexDenseGo #-}
 
 
 
