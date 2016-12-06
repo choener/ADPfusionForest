@@ -63,7 +63,7 @@ instance
     where
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-        in  traceShowIf True (ss "O/O/st",(i,j),(ooi,j)) $
+        in  -- traceShowIf True (ss "O/O/st",(i,j),(ooi,j)) $
             SvS s (tt:.TreeIxL frst lc ooi ooj) (ii:.:RiTilO iii iij ooi ooj)
   -- TODO do we need to filter out everything that is not "almost
   -- right-most", where only a single tree will then be? This will go into
@@ -75,7 +75,7 @@ instance
   --
   -- TODO use ooi, ooj instead of i,j for CFG-style grammars
   addIndexDenseGo (cs:._) (vs:.ORightOf ()) (lbs:._) (ubs:._) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
-    = blub . flatten mk step . addIndexDenseGo cs vs lbs ubs us is
+    = flatten mk step . addIndexDenseGo cs vs lbs ubs us is
     where mk svs = return (svs, Prelude.filter (\z -> j == lc VG.! z) $ toRoot frst j)
           -- ^ the @filter@ makes sure that we only build trees whose
           -- left-most leaf is @j@. Since then forest and tree fit next to
@@ -90,9 +90,9 @@ instance
             return $ Yield (SvS s (tt:.TreeIxL frst lc i (k+1)) (ii:.:RiTilO j (k+1) i (k+1))) (SvS s tt ii, ks)
           {-# Inline [0] mk   #-}
           {-# Inline [0] step #-}
-          blub = if False -- (i,j) == (0,1)
-                 then traceShow (ss "blub",i,j, let rs = toRoot frst j in (rs, [r | r <- rs, j == lc VG.! r]))
-                 else id
+--          blub = if False -- (i,j) == (0,1)
+--                 then traceShow (ss "blub",i,j, let rs = toRoot frst j in (rs, [r | r <- rs, j == lc VG.! r]))
+--                 else id
   {-# Inline addIndexDenseGo #-}
 
 toRoot frst k = goR k
@@ -146,13 +146,14 @@ instance
           step (s,[]) = return Done
           step (SvS s tt ii,k:ks) = do
             let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-            traceShowIf True (ss "OIvar",(i,j),(k,i)) . return $ Yield (SvS s (tt:.TreeIxL frst lc k i) (ii:.:RiTilO k i k j)) (SvS s tt ii,ks) -- j or ooj ???
+            -- traceShowIf True (ss "OIvar",(i,j),(k,i)) .
+            return $ Yield (SvS s (tt:.TreeIxL frst lc k i) (ii:.:RiTilO k i k j)) (SvS s tt ii,ks) -- j or ooj ???
           {-# Inline [0] mk   #-}
           {-# Inline [0] step #-}
           !isValidTree = j>0 && j<=u
-          blub = if (i,j) == (3,4)
-                 then traceShow ((i,j),let zs = allLeftBoundForests frst lc (j-1) in (zs,[ ((k,i),(k,j)) | k <- zs] ))
-                 else id
+--          blub = if (i,j) == (3,4)
+--                 then traceShow ((i,j),let zs = allLeftBoundForests frst lc (j-1) in (zs,[ ((k,i),(k,j)) | k <- zs] ))
+--                 else id
   addIndexDenseGo _ (vs:.bang) _ _ _ _ = error $ show bang
   {-# Inline addIndexDenseGo #-}
 

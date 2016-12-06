@@ -261,7 +261,7 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
       t1 = f $ Text.pack t1'
       t2 = f $ Text.pack t2'
   let (inn,out,zzz) = runIO t1 t2 matchSc mismatchSc indelSc temperature -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
-  print zzz
+--  print zzz
   let (Z:.TW (ITbl _ _ _ ift) _ :. TW (ITbl _ _ _ itt) _) = inn
   let (Z:.TW (ITbl _ _ _ oft) _ :. TW (ITbl _ _ _ ott) _) = out
   let (Z:.(TreeIxL frst1 kr1 lb1 _):.(TreeIxL frst2 kr2 lb2 _), Z:.(TreeIxL _ _ _ ub1):.(TreeIxL _ _ _ ub2)) = bounds oft
@@ -270,12 +270,12 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
   let scitt = itt ! ix
   let scoft = Prelude.sum [ oft ! (Z:.TreeIxL frst1 kr1 b1 b1 :. TreeIxL frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
   let scott = Prelude.sum [ ott ! (Z:.TreeIxL frst1 kr1 b1 b1 :. TreeIxL frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
-  print "inside"
-  print scift
-  print scitt
-  print "outside"
-  print scoft
-  print scott
+--  print "inside"
+--  print scift
+--  print scitt
+--  print "outside"
+--  print scoft
+--  print scott
 
   let ps = map (\(k,k1,k2) ->
             let k' = unsafeCoerce k
@@ -298,17 +298,17 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
       fillText xs = xs
   let gl1 = map (\k1 -> fillText . Text.unpack $ (maybe "-" label $ F.label t1 VG.!? k1)) [lb1 .. ub1 - 1]
   let gl2 = map (\k2 -> fillText . Text.unpack $ (maybe "-" label $ F.label t2 VG.!? k2)) [lb2 .. ub2 - 1]
-  print $ (ub1,ub2)
-  mapM_ print ps
-  print $ PA.toList oft == PA.toList ott
-  print "forests"
-  print ift
-  print oft
-  print "trees"
-  print itt
-  print ott
-  print kr1
-  print frst1
+--  print $ (ub1,ub2)
+--  mapM_ print ps
+--  print $ PA.toList oft == PA.toList ott
+--  print "forests"
+--  print ift
+--  print oft
+--  print "trees"
+--  print itt
+--  print ott
+--  print kr1
+--  print frst1
   case probFileTy of
          SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
          EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
