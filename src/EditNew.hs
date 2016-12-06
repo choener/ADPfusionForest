@@ -285,14 +285,18 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
   let (Z:.(TreeIxL frst1 kr1 lb1 _):.(TreeIxL frst2 kr2 lb2 _), Z:.(TreeIxL _ _ _ ub1):.(TreeIxL _ _ _ ub2)) = bounds oft
   let ix = (Z:.TreeIxL frst1 kr1 lb1 ub1:.TreeIxL frst2 kr2 lb2 ub2)
   let scift = ift ! ix
+  let scigt = igt ! ix
   let scitt = itt ! ix
   let scoft = Prelude.sum [ oft ! (Z:.TreeIxL frst1 kr1 b1 b1 :. TreeIxL frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  let scogt = Prelude.sum [ ogt ! (Z:.TreeIxL frst1 kr1 b1 b1 :. TreeIxL frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
   let scott = Prelude.sum [ ott ! (Z:.TreeIxL frst1 kr1 b1 b1 :. TreeIxL frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
   print "inside"
   print scift
+  print scigt
   print scitt
   print "outside"
   print scoft
+  print scogt
   print scott
 
   let ps = map (\(k,k1,k2) ->
@@ -325,6 +329,7 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
   print "trees"
   print itt
   print ott
+  print kr1
   case probFileTy of
          SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
          EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc

@@ -64,7 +64,7 @@ instance
       go (SvS s tt ii) =
         let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
         in  traceShowIf True (ss "O/O/st",(i,j),(ooi,j)) $
-            SvS s (tt:.TreeIxL frst lc ooi j) (ii:.:RiTilO iii iij ooi j)
+            SvS s (tt:.TreeIxL frst lc ooi ooj) (ii:.:RiTilO iii iij ooi ooj)
   -- TODO do we need to filter out everything that is not "almost
   -- right-most", where only a single tree will then be? This will go into
   -- the territory of linear vs. context-free languages for tree-editing.
@@ -141,12 +141,12 @@ instance
   -- @
   --
   addIndexDenseGo (cs:._) (vs:.OFirstLeft ()) (lbs:._) (ubs:._) (us:.TreeIxL frst lc l u) (is:.TreeIxL _ _ i j) --variable = links!
-    = flatten mk step . addIndexDenseGo cs vs lbs ubs us is . staticCheck isValidTree -- . blub
-    where mk svs = return (svs, allLeftBoundForests frst lc (j-1))
+    = flatten mk step . addIndexDenseGo cs vs lbs ubs us is -- . staticCheck isValidTree -- . blub
+    where mk svs = return (svs, [0..j-1]) -- allLeftBoundForests frst lc (j-1))
           step (s,[]) = return Done
           step (SvS s tt ii,k:ks) = do
             let RiTilO iii iij ooi ooj = getIndex (getIdx s) (Proxy :: PRI is (TreeIxL Post v a O))
-            traceShowIf True (ss "OIvar",(i,j),(k,i)) . return $ Yield (SvS s (tt:.TreeIxL frst lc k i) (ii:.:RiTilO iii i k j)) (SvS s tt ii,ks) -- j or ooj ???
+            traceShowIf True (ss "OIvar",(i,j),(k,i)) . return $ Yield (SvS s (tt:.TreeIxL frst lc k i) (ii:.:RiTilO k i k j)) (SvS s tt ii,ks) -- j or ooj ???
           {-# Inline [0] mk   #-}
           {-# Inline [0] step #-}
           !isValidTree = j>0 && j<=u

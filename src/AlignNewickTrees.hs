@@ -258,12 +258,19 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
   let (Z:.TW (ITbl _ _ _ oft) _ :. TW (ITbl _ _ _ omt) _ :. TW (ITbl _ _ _ ott) _) = out
   let (Z:.(TreeIxR frst1 lb1 _):.(TreeIxR frst2 lb2 _), Z:.(TreeIxR _ ub1 _):.(TreeIxR _ ub2 _)) = bounds oft
   let ix = (Z:.TreeIxR frst1 lb1 F:.TreeIxR frst2 lb2 F)
-  let sc = ift ! ix
+  let scift = ift ! ix
+  print scift
+  let scoft = Prelude.sum [ oft ! (Z:.TreeIxR frst1 b1 F :. TreeIxR frst2 b2 F) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  print scoft
+  let scimt = Prelude.sum [ imt ! (Z:.TreeIxR frst1 b1 T :. TreeIxR frst2 b2 T) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  print scimt
+  let scomt = Prelude.sum [ omt ! (Z:.TreeIxR frst1 b1 T :. TreeIxR frst2 b2 T) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  print scomt
   let ps = map (\(k,k1,k2) ->
             let k' = unsafeCoerce k
             in  ( k1
                 , k2
-                , ((imt!k) * (omt!k') / sc)
+                , ((imt!k) * (omt!k') / scift)
                 , (maybe "-" label $ F.label t1 VG.!? k1)
                 , (maybe "-" label $ F.label t2 VG.!? k2)
                 )) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T,k1,k2) | k1 <- [lb1 .. ub1 - 1], k2 <- [lb2 .. ub2 - 1] ]

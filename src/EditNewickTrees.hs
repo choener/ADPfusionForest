@@ -307,6 +307,8 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
   print "trees"
   print itt
   print ott
+  print kr1
+  print frst1
   case probFileTy of
          SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
          EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc

@@ -195,11 +195,11 @@ instance
   mkStream S (vs:.ORightOf ()) (us:.TreeIxL frst _ l u) (is:.TreeIxL _ _ i j)
     = error $ "mkStream S / ORightOf should not be happening!"
   mkStream S (vs:.OFirstLeft ()) (us:.TreeIxL frst _ l u) (is:.TreeIxL _ _ i j)
-    = map (\(ElmS zi) -> ElmS $ zi:.:RiTilO 0 0 0 0)
+    = map (\(ElmS zi) -> ElmS $ zi:.:RiTilO i i i j)
     . staticCheck True
     $ mkStream S vs us is
   mkStream S (vs:.OLeftOf ()) (us:.TreeIxL frst _ l u) (is:.TreeIxL _ _ i j)
-    = map (\(ElmS zi) -> ElmS $ zi:.:RiTilO 0 0 0 0)
+    = map (\(ElmS zi) -> ElmS $ zi:.:RiTilO 0 i 0 j)
     . staticCheck True
     $ mkStream S vs us is
   {-# Inline mkStream #-}
