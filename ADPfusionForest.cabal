@@ -240,6 +240,50 @@ executable EditNewickTrees
     -O2
     -funbox-strict-fields
 
+executable AffineEditNewickTrees
+  if flag(examples)
+    buildable:
+      True
+    build-depends: base
+                 , cmdargs                >= 0.10
+                 , containers
+                 , filepath
+                 , log-domain             >= 0.10
+                 , text
+                 , vector
+                 --
+                 , ADPfusion
+                 , ADPfusionForest
+                 , BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
+                 , ForestStructures
+                 , FormalGrammars         >= 0.3      &&  < 0.4
+                 , PrimitiveArray
+                 , PrimitiveArray-Pretty  >= 0.0      &&  < 0.1
+  else
+    buildable:
+      False
+  hs-source-dirs:
+    src
+  main-is:
+    AffineEditNewickTrees.hs
+  default-language:
+    Haskell2010
+  default-extensions: BangPatterns
+                    , DataKinds
+                    , DeriveDataTypeable
+                    , FlexibleContexts
+                    , GADTs
+                    , MultiParamTypeClasses
+                    , OverloadedStrings
+                    , QuasiQuotes
+                    , RecordWildCards
+                    , TemplateHaskell
+                    , TypeFamilies
+                    , TypeOperators
+  ghc-options:
+    -O2
+    -funbox-strict-fields
+
 
 
 executable EditNew
