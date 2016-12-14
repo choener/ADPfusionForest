@@ -81,7 +81,7 @@ score mat aff ndl = SigGlobal --Match affine deletion cost
 }
 {-# Inline score #-}
 
---resig :: Monad m => SigGlobal m a b c d e f -> SigLabolg m a b c d e f
+resig :: Monad m => SigGlobal m a b c d e f -> SigLabolg m a b c d e f
 --resig (SigGlobal gdo git gal gin gde gh) = SigLabolg gdo git gal gin gde gh
 resig (SigGlobal gdo qrdo git gal gin gqin gde grde gh) = SigLabolg gdo qrdo git gal gin gqin gde grde gh
 {-# Inline resig #-}
@@ -111,7 +111,7 @@ part mat aff ndl = SigGlobal
   , gIndel = \ f (Z:.():.n1) -> {- traceShow ("indel", f, n1, ndl) $ -} f * ndl
   , gQindel = \ f (Z:.():.n1) -> {- traceShow ("qindel", f, n1, ndl) $ -} f * aff
   , gDelin = \ f (Z:.n0:.()) -> {- traceShow ("delin", f, n0, ndl) $ -} f * ndl
-  , gRdelin = \ f (Z:.n0:.()) -> {- traceShow ("rdelin", f, n0, ndl) $ -} f * aff	
+  , gRdelin = \ f (Z:.n0:.()) -> {- traceShow ("rdelin", f, n0, ndl) $ -} f * aff
   , gH = SM.foldl' (+) 0.00000
 }
 {-# Inline part #-}
@@ -177,10 +177,10 @@ run :: Int -> Int -> Int -> Frst -> Frst -> (Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl I
 run mat aff ndl f1 f2 = (fwd,unId $ axiom f, unId $ axiom fb)
   where fwd@(Z:.f:.t:.u:.v) = runForward mat aff ndl f1 f2
         Z:.fb:.tb:.ub:.vb = gGlobal (score mat aff ndl <|| pretty')
-	                  (toBacktrack f (undefined :: Id a -> Id a))
-		          (toBacktrack t (undefined :: Id a -> Id a))
-		          (toBacktrack t (undefined :: Id a -> Id a))
-		          (toBacktrack t (undefined :: Id a -> Id a))  
+                          (toBacktrack f (undefined :: Id a -> Id a))
+                          (toBacktrack t (undefined :: Id a -> Id a))
+                          (toBacktrack t (undefined :: Id a -> Id a))
+                          (toBacktrack t (undefined :: Id a -> Id a))  
                           (node NTroot $ F.label f1) (node NTroot $ F.label f2)
                           (node NTany  $ F.label f1) (node NTany  $ F.label f2)
          :: Z:.TblBt B:.TblBt B:.TblBt B:.TblBt B
