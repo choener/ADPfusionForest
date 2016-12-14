@@ -1,8 +1,19 @@
 
 module Main where
 
-import           Control.Monad(forM_)
-import           Data.List (nub)
+
+import           Data.Char (toLower)
+import           System.FilePath
+import           Control.Monad(forM_,unless)
+import           Data.List (nub,tails)
+import           Data.Text (Text)
+import           Numeric.Log
+import qualified Data.Text as Text
+import           System.Console.CmdArgs
+import           System.Exit (exitFailure)
+import           Text.Printf
+import           Unsafe.Coerce
+
 import           Data.Vector.Fusion.Util
 import           Debug.Trace
 import qualified Data.Tree as T
@@ -16,8 +27,12 @@ import           Data.Forest.Static (TreeOrder(..),Forest)
 import           Data.PrimitiveArray as PA hiding (map)
 import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
+import           Diagrams.TwoD.ProbabilityGrid
 
 import           ADP.Fusion.Forest.Align.RL
+
+
+
 
 
 
@@ -109,9 +124,9 @@ score m a d = SigGlobal -- Match Affine Deletion costs
 {-# Inline score #-}
 
 
-resig :: Monad m => SigGlobal m a b c d e f -> SigLabolg m a b c d e f
-resig (SigGlobal gdo git gal gin gde gaf gaf2 gfp gpf ggp gpg ggf gfg gfp gpf gpg2 ggp2 gfg2 ggf2 gfp2 gpf2 gfg3 ggf3 gpg3 ggp3 gal2 gh)
-  = SigLabolg gdo git gal gin gde gaf gaf2 gfp gpf ggp gpg ggf gfg gfp gpf gpg2 ggp2 gfg2 ggf2 gfp2 gpf2 gfg3 ggf3 gpg3 ggp3 gal2 gh
+resig :: Monad m => SigGlobal m a b c d -> SigLabolg m a b c d
+resig (SigGlobal gdo git gal gin gde gaf gaf2 gfp gpf ggp gpg ggf gfg gfp2 gpf2 gpg2 ggp2 gfg2 ggf2 gfp3 gpf3 gfg3 ggf3 gpg3 ggp3 gal2 gh)
+  = SigLabolg gdo git gal gin gde gaf gaf2 gfp gpf ggp gpg ggf gfg gfp2 gpf2 gpg2 ggp2 gfg2 ggf2 gfp3 gpf3 gfg3 ggf3 gpg3 ggp3 gal2 gh
 {-# Inline resig #-}
 
 
@@ -150,7 +165,7 @@ pretty' = SigGlobal
 
 
 
-part :: Monad m => Log Double -> Log Double -> Log Double -> SigGlobal m (Log Double) (Log Double) Info Info Info Info
+part :: Monad m => Log Double -> Log Double -> Log Double -> SigGlobal m (Log Double) (Log Double) Info Info
 part mat aff ndl = SigGlobal
   { gDone  = \ (Z:.():.()) -> 1
   , gIter  = \ t f -> t*f
@@ -178,7 +193,7 @@ part mat aff ndl = SigGlobal
   , gPgindel = \ t f -> t * f
   , gGpindel = \ t f -> t * f
   , gAlldone = \ f -> f
-  , gH       = SM.toList
+  , gH       = SM.foldl' (+) 0.00000
   }
 {-# Inline part #-}
 
@@ -190,10 +205,10 @@ type Tbl x = TwITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) x
 type TblBt x = TwITblBt Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trix:.Trix) Int Id Id [x]
 type Frst = Forest Pre V.Vector Info
 --type B = (Info,Info)
-type Trox = TreeIxL Post V.Vector Info O
+type Trox = TreeIxR Pre V.Vector Info O
 type OTbl x = TwITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.Trox:.Trox) x
 
-runForward :: Frst -> Frst -> Int -> Int -> Int -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int --:.Tbl Int
+runForward :: Frst -> Frst -> Int -> Int -> Int -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int
 runForward f1 f2 m a d = let
                          in
                            mutateTablesDefault $
@@ -210,14 +225,13 @@ runForward f1 f2 m a d = let
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
---			   (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (node NTany $ F.label f1)
                            (node NTany $ F.label f2)
 {-# NoInline runForward #-}
 
 
 
-runInside :: (Log Double) -> (Log Double) -> (Log Double) -> Frst -> Frst -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double) --:.Tbl (Log Double)
+runInside :: (Log Double) -> (Log Double) -> (Log Double) -> Frst -> Frst -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double)
 runInside mat aff ndl f1 f2
   = mutateTablesDefault $
       gGlobal (part mat aff ndl)
@@ -228,23 +242,27 @@ runInside mat aff ndl f1 f2
       (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
-      (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
---      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (node NTany  $ F.label f1)
       (node NTany  $ F.label f2)
 {-# NoInline runInside #-}
 
 
 
-runOutside :: (Log Double) -> (Log Double) -> (Log Double) -> Frst -> Frst -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double) -> Z:.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double)
-runOutside mat aff ndl f1 f2 (Z:.iF:.iT:.iP:.iG:.iY:.iZ)
+runOutside :: (Log Double) -> (Log Double) -> (Log Double) -> Frst -> Frst -> Z:.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double) :.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double):.Tbl (Log Double) -> Z:.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double):.OTbl (Log Double)
+runOutside mat aff ndl f1 f2 (Z:.iF:.iT:.iP:.iG:.iY:.iZ:.iF2:.iT2:.iP2:.iG2:.iY2:.iZ2)
   = mutateTablesDefault $
       (gLabolg (resig (part mat aff ndl)))
+      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
+      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
+      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
+      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
+      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
+      (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
@@ -253,6 +271,16 @@ runOutside mat aff ndl f1 f2 (Z:.iF:.iT:.iP:.iG:.iY:.iZ)
       (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) 0 [] ))
       iF
       iT
+      iG
+      iP
+      iY
+      iZ
+      iF2
+      iT2
+      iG2
+      iP2
+      iY2
+      iZ2
       (node NTany  $ F.label f1)
       (node NTany  $ F.label f2)
 {-# NoInline runOutside #-}
@@ -285,8 +313,8 @@ run f1 f2 m a d = (fwd,unId $ axiom a1, unId $ axiom b1)
 
 
 runIO f1 f2 matchSc affineSc indelSc temperature = (fwd,out,unId $ axiom f)
-  where fwd@(Z:.f:.t:.p:.g:.y:.z) = runInside matchSc affineSc indelSc f1 f2
-        out@(Z:.oft:.ott:.opt:.ogt:.oyt:.ozt) = runOutside matchSc affineSc indelSc f1 f2 fwd
+  where fwd@(Z:.f:.t:.p:.g:.y:.z:.fa:.ta:.pa:.ga:.ya:.za) = runInside matchSc affineSc indelSc f1 f2
+        out@(Z:.oft:.ott:.opt:.ogt:.oyt:.ozt:.ofta:.otta:.opta:.ogta:.oyta:.ozta) = runOutside matchSc affineSc indelSc f1 f2 fwd
 {-# NoInline runIO #-}
 
 
@@ -369,6 +397,86 @@ oOptions = Options
   , temperature = 1
   }
 
+
+
+main :: IO ()
+main = do
+  o@Options{..} <- cmdArgs oOptions
+  unless (length inputFiles >= 2) $ do
+    putStrLn "give at least two Newick files on the command line"
+    exitFailure
+  let ts = init $ init $ tails inputFiles
+      f z = Exp $ z/temperature 
+  forM_ ts $ \(n1:hs) -> do
+    forM_ hs $ \n2 -> do
+      putStrLn n1
+      putStrLn n2
+      f1 <- readFile n1
+      f2 <- readFile n2
+      runAlignS f1 f2 (round matchSc) (round affineSc) (round delinSc)
+      unless (null probFile) $ do
+        runAlignIO (if linearScale then FWlinear else FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (f matchSc) (f affineSc) (f delinSc) (Exp temperature)
+
+
+
+
+runAlignS t1' t2' matchSc affineSc delinSc = do
+  let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
+      t1 = f $ Text.pack t1'
+      t2 = f $ Text.pack t2'
+  let (fwd,sc,bt') = run t1 t2 matchSc affineSc delinSc
+  let (Z:.TW (ITbl _ _ _ ift) _ :. TW (ITbl _ _ _ itt) _ :. TW (ITbl _ _ _ igt) _ :. TW (ITbl _ _ _ ipt) _ :. TW (ITbl _ _ _ iyt) _ :. TW (ITbl _ _ _ izt) _ :.TW (ITbl _ _ _ ift2) _ :. TW (ITbl _ _ _ itt2) _ :. TW (ITbl _ _ _ igt2) _ :. TW (ITbl _ _ _ ipt2) _ :. TW (ITbl _ _ _ iyt2) _ :. TW (ITbl _ _ _ izt2) _) = fwd
+  let bt = nub bt'
+  printf "Score: %10d\n" sc
+  forM_ bt $ \b -> do
+    putStrLn ""
+    forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
+
+runAlignIO fw probFileTy probFile t1' t2' matchSc affineSc indelSc temperature = do
+  let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
+      t1 = f $ Text.pack t1'
+      t2 = f $ Text.pack t2'
+  let (inn,out,_) = runIO t1 t2 matchSc affineSc indelSc temperature -- (t2 {F.lsib = VG.fromList [-1,-1], F.rsib = VG.fromList [-1,-1]})
+  let (Z:.TW (ITbl _ _ _ ift) _ :. TW (ITbl _ _ _ itt) _ :. TW (ITbl _ _ _ ipt) _ :. TW (ITbl _ _ _ igt) _ :. TW (ITbl _ _ _ iyt) _ :. TW (ITbl _ _ _ izt) _ :.TW (ITbl _ _ _ ift2) _ :. TW (ITbl _ _ _ itt2) _ :. TW (ITbl _ _ _ ipt2) _ :. TW (ITbl _ _ _ igt2) _ :. TW (ITbl _ _ _ iyt2) _ :. TW (ITbl _ _ _ izt2) _) = inn
+  let (Z:.TW (ITbl _ _ _ oft) _ :. TW (ITbl _ _ _ ott) _ :. TW (ITbl _ _ _ opt) _ :. TW (ITbl _ _ _ ogt) _ :. TW (ITbl _ _ _ oyt) _ :. TW (ITbl _ _ _ ozt) _ :.TW (ITbl _ _ _ oft2) _ :. TW (ITbl _ _ _ ott2) _ :. TW (ITbl _ _ _ opt2) _ :. TW (ITbl _ _ _ ogt2) _ :. TW (ITbl _ _ _ oyt2) _ :. TW (ITbl _ _ _ ozt2) _) = out
+  let (Z:.(TreeIxR frst1 lb1 _):.(TreeIxR frst2 lb2 _), Z:.(TreeIxR _ ub1 _):.(TreeIxR _ ub2 _)) = bounds oft
+  let ix = (Z:.TreeIxR frst1 lb1 F:.TreeIxR frst2 lb2 F)
+  let scift = ift ! ix
+  print scift
+  let scoft = Prelude.sum [ oft ! (Z:.TreeIxR frst1 b1 F :. TreeIxR frst2 b2 F) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  print scoft
+  let scitt = Prelude.sum [ itt ! (Z:.TreeIxR frst1 b1 T :. TreeIxR frst2 b2 T) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  print scitt
+  let scott = Prelude.sum [ ott ! (Z:.TreeIxR frst1 b1 T :. TreeIxR frst2 b2 T) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  print scott
+  let ps = map (\(k,k1,k2) ->
+            let k' = unsafeCoerce k
+            in  ( k1
+                , k2
+                , ((itt!k) * (ott!k') / scift)
+                , (maybe "-" label $ F.label t1 VG.!? k1)
+                , (maybe "-" label $ F.label t2 VG.!? k2)
+                )) [ (Z:.TreeIxR frst1 k1 T:.TreeIxR frst2 k2 T,k1,k2) | k1 <- [lb1 .. ub1 - 1], k2 <- [lb2 .. ub2 - 1] ]
+  --
+  let gsc = map (\(k1,k2,sc,l1,l2) -> sc) ps
+  let fillText [] = " "
+      fillText xs = xs
+  let gl1 = map (\k1 -> fillText . Text.unpack $ (maybe "-" label $ F.label t1 VG.!? k1)) [lb1 .. ub1 - 1]
+  let gl2 = map (\k2 -> fillText . Text.unpack $ (maybe "-" label $ F.label t2 VG.!? k2)) [lb2 .. ub2 - 1]
+  case probFileTy of
+         SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
+         EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
+
+
+
+
+
+
+
+
+
+-- part copied from tree edit
+{-
 main :: IO ()
 main = do
   o@Options{..} <- cmdArgs oOptions
@@ -384,7 +492,9 @@ main = do
       putStrLn n2
       f1 <- readFile n1
       f2 <- readFile n2
-      let (_,sc,bt') = run (round matchSc) (round affineSc) (round delinSc) (fff f1) (fff f2)
+      let t1 = f $ Text.pack t1'
+      let t2 = f $ Text.pack t2'
+      let (_,sc,bt') = run (round matchSc) (round affineSc) (round delinSc) (t1) (t2)
       let bt = nub $ take 10 bt'
       printf "Score: %10d\n" sc
       putStrLn ""
@@ -402,12 +512,12 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc affineSc indelSc temperature =
 --  print zzz
   let (Z:.TW (ITbl _ _ _ ift) _ :. TW (ITbl _ _ _ itt) _ :. TW (ITbl _ _ _ itq) _ :. TW (ITbl _ _ _ itr) _) = inn
   let (Z:.TW (ITbl _ _ _ oft) _ :. TW (ITbl _ _ _ ott) _ :. TW (ITbl _ _ _ otq) _ :. TW (ITbl _ _ _ otr) _) = out
-  let (Z:.(TreeIxL frst1 kr1 lb1 _):.(TreeIxL frst2 kr2 lb2 _), Z:.(TreeIxL _ _ _ ub1):.(TreeIxL _ _ _ ub2)) = bounds oft
-  let ix = (Z:.TreeIxL frst1 kr1 lb1 ub1:.TreeIxL frst2 kr2 lb2 ub2)
+  let (Z:.(TreeIxR frst1 kr1 lb1 _):.(TreeIxR frst2 kr2 lb2 _), Z:.(TreeIxR _ _ _ ub1):.(TreeIxR _ _ _ ub2)) = bounds oft
+  let ix = (Z:.TreeIxR frst1 kr1 lb1 ub1:.TreeIxR frst2 kr2 lb2 ub2)
   let scift = ift ! ix
   let scitt = itt ! ix
-  let scoft = Prelude.sum [ oft ! (Z:.TreeIxL frst1 kr1 b1 b1 :. TreeIxL frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
-  let scott = Prelude.sum [ ott ! (Z:.TreeIxL frst1 kr1 b1 b1 :. TreeIxL frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  let scoft = Prelude.sum [ oft ! (Z:.TreeIxR frst1 kr1 b1 b1 :. TreeIxR frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
+  let scott = Prelude.sum [ ott ! (Z:.TreeIxR frst1 kr1 b1 b1 :. TreeIxR frst2 kr2 b2 b2) | b1 <- [lb1 .. ub1], b2 <- [lb2 .. ub2] ]
 --  print "inside"
 --  print scift
 --  print scitt
@@ -429,7 +539,7 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc affineSc indelSc temperature =
                 , {- traceShow (itt!k, ott!k') $ -} max 0 . min 1.2 $ ((itt!k) * (ott!k') / scift)
                 , (maybe "-" label $ F.label t1 VG.!? k1)
                 , (maybe "-" label $ F.label t2 VG.!? k2)
-                )) [ (Z:.TreeIxL frst1 kr1 (kr1 VG.! k1) (k1+1) :.TreeIxL frst2 kr2 (kr2 VG.! k2) (k2+1),k1,k2) | k1 <- [0 .. ub1-1], k2 <- [0 .. ub2-1] ]
+                )) [ (Z:.TreeIxR frst1 kr1 (kr1 VG.! k1) (k1+1) :.TreeIxR frst2 kr2 (kr2 VG.! k2) (k2+1),k1,k2) | k1 <- [0 .. ub1-1], k2 <- [0 .. ub2-1] ]
   --
   let gsc = map (\(k1,k2,"",_,_,"",_,_,_,sc,l1,l2) -> sc) ps
   let fillText [] = " "
@@ -440,3 +550,4 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc affineSc indelSc temperature =
          SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
          EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
 
+-}
