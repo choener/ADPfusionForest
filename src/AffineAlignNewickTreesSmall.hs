@@ -94,7 +94,7 @@ score matchSc notmatchSc delinSc affinSc = SigGlobal -- match affine deletion
 
 part :: Monad m => Log Double -> Log Double -> Log Double -> Log Double -> Log Double -> SigGlobal m (Log Double) (Log Double) Info Info
 part matchSc mismatchSc delinSc affinSc temp = SigGlobal
-  { gDone  = \ f -> f -- (Z:.():.()) -> 1
+  { gDone  = \ f -> f 
   , gIter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t * f
   , gFinalDone  = \ (Z:.():.()) -> 1
   , gSiter  = \ t f -> tSI glb ("TFTFTFTFTF",t,f) $ t * f
@@ -104,7 +104,7 @@ part matchSc mismatchSc delinSc affinSc temp = SigGlobal
   , gFgap = \ t f -> t * f * delinSc
   , gPgap = \ t f -> t * f * affinSc
   , gSgap = \ t f -> t * f * affinSc
-  , gH     = SM.foldl' (+) 0.0000001
+  , gH     = SM.foldl' (+) 0.000000
   }
 {-# Inline part #-}
 
@@ -219,7 +219,7 @@ runOutside f1 f2 matchSc mismatchSc indelSc affinSc temperature (Z:.iE:.iF:.iQ:.
     (ITbl 1 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
     (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
     (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
-    (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
+    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
     (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
     (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
     (ITbl 0 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))
@@ -340,9 +340,9 @@ runAlignS t1' t2' matchSc notmatchSc delinSc affinSc = do
   let (Z:.TW (ITbl _ _ _ iet) _ :.TW (ITbl _ _ _ ift) _ :.TW (ITbl _ _ _ iqt) _ :.TW (ITbl _ _ _ irt) _ :.TW (ITbl _ _ _ itt) _ :.TW (ITbl _ _ _ ist) _ :.TW (ITbl _ _ _ izt) _) = fwd
   let bt = nub bt'
   printf "Score: %10d\n" sc
-  forM_ bt $ \b -> do
-    putStrLn ""
-    forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
+--  forM_ bt $ \b -> do
+--    putStrLn ""
+--    forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
 
 runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc affinSc temperature = do
   let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
@@ -354,6 +354,7 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc affinSc tem
   let (Z:.(TreeIxR frst1 lb1 _):.(TreeIxR frst2 lb2 _), Z:.(TreeIxR _ ub1 _):.(TreeIxR _ ub2 _)) = bounds oft
   let ix = (Z:.TreeIxR frst1 lb1 F:.TreeIxR frst2 lb2 F)
   let sc = ift ! ix
+  print sc
   let ps = map (\(k,k1,k2) ->
             let k' = unsafeCoerce k
             in  ( k1
