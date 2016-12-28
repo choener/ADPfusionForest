@@ -1,4 +1,4 @@
-resolver: lts-5.10
+resolver: lts-7.14
 
 packages:
 - '.'
@@ -19,18 +19,16 @@ packages:
   extra-dep: true
 - location: ../Lib-BiobaseNewick/
   extra-dep: true
-- location:
-   git: https://github.com/ekmett/vector-instances
-   commit: d289575cb1729e598d929e73cfa37b84232cd0c9
+- location: ../../other/vector-instances
   extra-dep: true
 - location: ../Lib-DPutils
   extra-dep: true
 
-extra-deps:
-- cereal-text-0.1.0.1
-- hybrid-vectors-0.2.1
-- OneTuple-0.2.1
-- tuple-0.3.0.2
+#extra-deps:
+#- cereal-text-0.1.0.1
+#- hybrid-vectors-0.2.1
+#- OneTuple-0.2.1
+#- tuple-0.3.0.2
 
 flags:
   ADPfusionForest:
