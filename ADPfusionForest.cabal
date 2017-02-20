@@ -55,10 +55,10 @@ library
                , vector-algorithms      >= 0.7
                --
                , ADPfusion              == 0.5.2.*
-               , DPutils                >= 0.0.0    &&  < 0.0.2
+               , DPutils                == 0.0.1.*
                , ForestStructures       == 0.0.0.*
                , GrammarProducts        == 0.1.*
-               , PrimitiveArray         == 0.7.2.*
+               , PrimitiveArray         == 0.8.0.*
 
   exposed-modules:
     ADP.Fusion.Forest.Align.PRL
@@ -118,11 +118,11 @@ executable AlignNewickTrees
                  --
                  , ADPfusion
                  , ADPfusionForest
-                 , BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
+                 , BiobaseNewick          >= 0.0.0.1
                  , ForestStructures
-                 , FormalGrammars         >= 0.3      &&  < 0.4
+                 , FormalGrammars         >= 0.3
                  , PrimitiveArray
-                 , PrimitiveArray-Pretty  >= 0.0      &&  < 0.1
+                 , PrimitiveArray-Pretty  >= 0.0
   else
     buildable:
       False
@@ -164,11 +164,11 @@ executable AffineAlignNewickTreesSmall
                  --
                  , ADPfusion
                  , ADPfusionForest
-                 , BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
+                 , BiobaseNewick          >= 0.0.0.1
                  , ForestStructures
-                 , FormalGrammars         >= 0.3      &&  < 0.4
+                 , FormalGrammars         >= 0.3
                  , PrimitiveArray
-                 , PrimitiveArray-Pretty  >= 0.0      &&  < 0.1
+                 , PrimitiveArray-Pretty  >= 0.0
   else
     buildable:
       False
@@ -211,11 +211,11 @@ executable EditNewickTrees
                  --
                  , ADPfusion
                  , ADPfusionForest
-                 , BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
+                 , BiobaseNewick          >= 0.0.0.1
                  , ForestStructures
-                 , FormalGrammars         >= 0.3      &&  < 0.4
+                 , FormalGrammars         >= 0.3
                  , PrimitiveArray
-                 , PrimitiveArray-Pretty  >= 0.0      &&  < 0.1
+                 , PrimitiveArray-Pretty  >= 0.0
   else
     buildable:
       False
@@ -255,11 +255,11 @@ executable AffineEditNewickTrees
                  --
                  , ADPfusion
                  , ADPfusionForest
-                 , BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
+                 , BiobaseNewick          >= 0.0.0.1
                  , ForestStructures
-                 , FormalGrammars         >= 0.3      &&  < 0.4
+                 , FormalGrammars         >= 0.3
                  , PrimitiveArray
-                 , PrimitiveArray-Pretty  >= 0.0      &&  < 0.1
+                 , PrimitiveArray-Pretty  >= 0.0
   else
     buildable:
       False
@@ -301,11 +301,11 @@ executable EditNew
                  --
                  , ADPfusion
                  , ADPfusionForest
-                 , BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
+                 , BiobaseNewick          >= 0.0.0.1
                  , ForestStructures
-                 , FormalGrammars         >= 0.3      &&  < 0.4
+                 , FormalGrammars         >= 0.3
                  , PrimitiveArray
-                 , PrimitiveArray-Pretty  >= 0.0      &&  < 0.1
+                 , PrimitiveArray-Pretty  >= 0.0
   else
     buildable:
       False
@@ -347,11 +347,11 @@ executable SingleEdit
                  --
                  , ADPfusion
                  , ADPfusionForest
-                 , BiobaseNewick          >= 0.0.0.1  &&  < 0.0.1.0
+                 , BiobaseNewick          >= 0.0.0.1
                  , ForestStructures
-                 , FormalGrammars         >= 0.3      &&  < 0.4
+                 , FormalGrammars         >= 0.3
                  , PrimitiveArray
-                 , PrimitiveArray-Pretty  >= 0.0      &&  < 0.1
+                 , PrimitiveArray-Pretty  >= 0.0
   else
     buildable:
       False
