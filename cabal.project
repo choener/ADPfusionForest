@@ -1,17 +1,4 @@
 packages: .
-          ../Lib-ADPfusion
-          ../Lib-BiobaseNewick
-          ../Lib-DPutils
-          ../Lib-ForestStructures
-          ../Lib-FormalGrammars
-          ../Lib-GrammarProducts
-          ../Lib-OrderedBits
-          ../Lib-PrimitiveArray
-          ../Lib-PrimitiveArray-Pretty
-          ../../other/vector-instances
 
-package ADPfusionForest
-  flags: examples
-  ghc-options: -O0
-  optimization: False
+optional-packages: ./*/*.cabal
 
