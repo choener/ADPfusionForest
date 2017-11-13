@@ -204,7 +204,7 @@ testedit = do
   print sc
 
 
-data PFT = SVG | EPS
+data PFT = SVg | EPs
   deriving (Show,Data,Typeable)
 
 
@@ -226,7 +226,7 @@ oOptions = Options
   , notmatchSc  = -30 &= help "score for mismatches, negative number; def=-30"
   , delinSc     = -10 &= help "score for deletions and insertions, negative number; def=-10"
   , probFile = def
-  , probFileTy = EPS
+  , probFileTy = EPs
   , linearScale = False
   , temperature = 1
   }
@@ -310,6 +310,6 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc temperature
 --  print kr1
 --  print frst1
   case probFileTy of
-         SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
-         EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
+         SVg -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
+         EPs -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
 

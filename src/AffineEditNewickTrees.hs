@@ -25,7 +25,7 @@ import           Data.Forest.Static (TreeOrder(..),Forest)
 import           Data.PrimitiveArray as PA hiding (map)
 import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
-import           Diagrams.TwoD.ProbabilityGrid
+import qualified Diagrams.TwoD.ProbabilityGrid as PG
 
 import           ADP.Fusion.Forest.Edit.LL
 
@@ -252,7 +252,7 @@ main = do
         forM_ b $ \(Info l _, Info r _) -> printf "%1s.%1s  " (Text.unpack l) (Text.unpack r)
         putStrLn ""
       unless (null probFile) $ do
-        runAlignIO (if linearScale then FWlinear else FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (expScore matchSc) (expScore notmatchSc) (expScore affineSc) (expScore delinSc) (Exp temperature )
+        runAlignIO (if linearScale then PG.FWlinear else PG.FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (expScore matchSc) (expScore notmatchSc) (expScore affineSc) (expScore delinSc) (Exp temperature )
 
 runAlignIO fw probFileTy probFile t1' t2' matchSc notmatchSc affineSc indelSc temperature = do
   let f x = either error (F.forestPost . map getNewickTree) $ newicksFromText x
@@ -297,6 +297,6 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc notmatchSc affineSc indelSc te
   let gl1 = map (\k1 -> fillText . Text.unpack $ (maybe "-" label $ F.label t1 VG.!? k1)) [lb1 .. ub1 - 1]
   let gl2 = map (\k2 -> fillText . Text.unpack $ (maybe "-" label $ F.label t2 VG.!? k2)) [lb2 .. ub2 - 1]
   case probFileTy of
-         SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
-         EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
+         SVG -> PG.svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
+         EPS -> PG.epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
 

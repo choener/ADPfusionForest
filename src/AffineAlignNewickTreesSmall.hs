@@ -24,7 +24,7 @@ import           ADP.Fusion.Core
 import           Biobase.Newick
 import           Data.Forest.Static (TreeOrder(..),Forest)
 import           Data.PrimitiveArray as PA hiding (map)
-import           Diagrams.TwoD.ProbabilityGrid
+import qualified Diagrams.TwoD.ProbabilityGrid as PG
 import           FormalLanguage.CFG
 import qualified Data.Forest.Static as F
 
@@ -327,7 +327,7 @@ main = do
       f2 <- readFile n2
       runAlignS f1 f2 (round matchSc) (round notmatchSc) (round delinSc) (round affinSc)
       unless (null probFile) $ do
-        runAlignIO (if linearScale then FWlinear else FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (f matchSc) (f notmatchSc) (f delinSc) (f affinSc) (Exp temperature)
+        runAlignIO (if linearScale then PG.FWlinear else PG.FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (f matchSc) (f notmatchSc) (f delinSc) (f affinSc) (Exp temperature)
 
 
 
@@ -338,7 +338,7 @@ runAlignS t1' t2' matchSc notmatchSc delinSc affinSc = do
       t2 = f $ Text.pack t2'
   let (fwd,sc,bt') = run t1 t2 matchSc notmatchSc delinSc affinSc
   let (Z:.TW (ITbl _ _ _ iet) _ :.TW (ITbl _ _ _ ift) _ :.TW (ITbl _ _ _ iqt) _ :.TW (ITbl _ _ _ irt) _ :.TW (ITbl _ _ _ itt) _ :.TW (ITbl _ _ _ ist) _ :.TW (ITbl _ _ _ izt) _) = fwd
-  let bt = nub bt'
+  let bt = take 1 bt' -- nub bt'
   printf "Score: %10d\n" sc
 --  forM_ bt $ \b -> do
 --    putStrLn ""
@@ -367,9 +367,10 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc affinSc tem
   let gsc = map (\(k1,k2,sc,l1,l2) -> sc) ps
   let fillText [] = " "
       fillText xs = xs
+  mapM_ print gsc
   let gl1 = map (\k1 -> fillText . Text.unpack $ (maybe "-" label $ F.label t1 VG.!? k1)) [lb1 .. ub1 - 1]
   let gl2 = map (\k2 -> fillText . Text.unpack $ (maybe "-" label $ F.label t2 VG.!? k2)) [lb2 .. ub2 - 1]
   case probFileTy of
-         SVG -> svgGridFile probFile fw ub1 ub2 gl1 gl2 gsc
-         EPS -> epsGridFile probFile fw ub1 ub2 gl1 gl2 gsc
+         SVG -> PG.svgGridFile probFile fw PG.FSfull ub1 ub2 gl1 gl2 gsc
+         EPS -> PG.epsGridFile probFile fw PG.FSfull ub1 ub2 gl1 gl2 gsc
 
