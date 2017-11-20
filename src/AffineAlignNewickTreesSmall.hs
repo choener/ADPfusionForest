@@ -144,7 +144,7 @@ type B = T.Tree (Info,Info)
 runForward :: Frst -> Frst -> Int -> Int -> Int -> Int -> Z:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int:.Tbl Int
 runForward f1 f2 matchSc notmatchSc delinSc affinSc = let
                          in
-                           mutateTablesDefault $
+                           mutateTablesST $
                            gGlobal (score matchSc notmatchSc delinSc affinSc) -- costs
                            (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (ITbl 1 1 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
@@ -155,6 +155,7 @@ runForward f1 f2 matchSc notmatchSc delinSc affinSc = let
                            (ITbl 1 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (-99999) [] ))
                            (node NTany $ F.label f1)
                            (node NTany $ F.label f2)
+{-# NoInline runForward #-}
 
 
 -- |inside part
@@ -201,6 +202,8 @@ runInside f1 f2 matchSc notmatchSc delinSc affinSc temperature = let
                            (ITbl 1 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.minIx f1:.minIx f2) (Z:.maxIx f1:.maxIx f2) (0) [] ))   -- ZT
                            (node NTany $ F.label f1)
                            (node NTany $ F.label f2)
+{-# NoInline runInside #-}
+
 
 
 -- outside part
@@ -250,6 +253,8 @@ run f1 f2 matchSc notmatchSc delinSc affinSc = (fwd,unId $ axiom a2, unId $ axio
                     (toBacktrack a7 (undefined :: Id a -> Id a))  
                     (node NTany $ F.label f1) (node NTany $ F.label f2)
                     :: Z:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B:.TblBt B
+{-# NoInline run #-}
+
 
 
 -- outside part
@@ -257,7 +262,7 @@ run f1 f2 matchSc notmatchSc delinSc affinSc = (fwd,unId $ axiom a2, unId $ axio
 runIO f1 f2 matchSc mismatchSc indelSc affinSc temperature = (fwd,out,unId $ axiom f)
   where fwd@(Z:.e:.f:.q:.r:.t:.s:.z) = runInside f1 f2 matchSc mismatchSc indelSc affinSc temperature
         out@(Z:.oet:.oft:.oqt:.ort:.ott:.ost:.ozt) = runOutside f1 f2 matchSc mismatchSc indelSc affinSc temperature fwd
-
+{-# NoInline runIO #-}
 
 --         a            a
 --        / \          / \
@@ -330,7 +335,11 @@ main = do
         runAlignIO (if linearScale then PG.FWlinear else PG.FWlog) probFileTy (probFile ++ "-" ++ takeBaseName n1 ++ "-" ++ takeBaseName n2 ++ "." ++ (map toLower $ show probFileTy)) f1 f2 (f matchSc) (f notmatchSc) (f delinSc) (f affinSc) (Exp temperature)
 
 
-
+test n1 n2 = do
+  f1 <- readFile n1
+  f2 <- readFile n2
+  runAlignS f1 f2 10 (-30) (-10) (-1)
+{-# NoInline test #-}
 
 runAlignS t1' t2' matchSc notmatchSc delinSc affinSc = do
   let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
@@ -343,6 +352,7 @@ runAlignS t1' t2' matchSc notmatchSc delinSc affinSc = do
 --  forM_ bt $ \b -> do
 --    putStrLn ""
 --    forM_ b $ \x -> putStrLn $ T.drawTree $ fmap show x
+{-# NoInline runAlignS #-}
 
 runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc affinSc temperature = do
   let f x = either error (F.forestPre . map getNewickTree) $ newicksFromText x
@@ -373,4 +383,5 @@ runAlignIO fw probFileTy probFile t1' t2' matchSc mismatchSc indelSc affinSc tem
   case probFileTy of
          SVG -> PG.svgGridFile probFile fw PG.FSfull ub1 ub2 gl1 gl2 gsc
          EPS -> PG.epsGridFile probFile fw PG.FSfull ub1 ub2 gl1 gl2 gsc
+{-# NoInline runAlignIO #-}
 

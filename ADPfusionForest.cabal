@@ -1,7 +1,7 @@
 name:           ADPfusionForest
 version:        0.0.0.1
-author:         Christian Hoener zu Siederdissen, Sarah Berkemer, 2016
-copyright:      Christian Hoener zu Siederdissen, 2016
+author:         Christian Hoener zu Siederdissen, Sarah Berkemer, 2016-2017
+copyright:      Christian Hoener zu Siederdissen, 2016-2017
 homepage:       https://github.com/choener/ADPfusionForest
 bug-reports:    https://github.com/choener/ADPfusionForest/issues
 maintainer:     choener@bioinf.uni-leipzig.de
@@ -11,7 +11,7 @@ license-file:   LICENSE
 build-type:     Simple
 stability:      experimental
 cabal-version:  >= 1.10.0
-tested-with:    GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.1
+tested-with:    GHC == 8.0.2
 synopsis:       Dynamic programming on tree and forest structures
 description:
                 ADPfusion for formal languages on tree and forest structures.
@@ -22,6 +22,8 @@ description:
                 The result is the ability to easily write formal grammars which
                 act on input trees (as compared to the more common input
                 strings).
+                .
+                Build this library with GHC-8.0.2
 
 
 
@@ -54,7 +56,7 @@ library
                , vector-th-unbox        >= 0.2
                , vector-algorithms      >= 0.7
                --
-               , ADPfusion              == 0.5.2.0
+               , ADPfusion              == 0.5.2.*
                , DPutils                == 0.0.1.*
                , ForestStructures       == 0.0.0.*
                , GrammarProducts        == 0.1.*
